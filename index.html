@@ -822,8 +822,8 @@ function apiPost(data) {
   </div>
 
   <!-- 発注確認モーダル（送信前確認） -->
-  <div id="ord-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:flex-end;justify-content:center;">
-    <div style="background:var(--bg4);border-radius:var(--radius-lg) var(--radius-lg) 0 0;width:100%;max-width:680px;padding:20px 20px calc(20px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);max-height:85vh;overflow-y:auto;">
+  <div id="ord-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;align-items:flex-end;justify-content:center;">
+    <div style="background:var(--bg4);border-radius:var(--radius-lg) var(--radius-lg) 0 0;width:100%;max-width:680px;padding:20px 20px calc(80px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);max-height:90vh;overflow-y:auto;">
       <div style="font-size:18px;font-weight:700;margin-bottom:4px;">発注内容の確認</div>
       <div style="font-size:13px;color:var(--ink3);margin-bottom:14px;">以下の内容で仕入れ先に送信します</div>
 
@@ -836,15 +836,15 @@ function apiPost(data) {
         <label for="ord-skip-confirm" style="font-size:13px;color:var(--ink2);cursor:pointer;">今後この確認画面を表示しない</label>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">
-        <button class="btn" onclick="hideOrdModal()" style="justify-content:center;">修正する</button>
-        <button class="btn btn-green" onclick="submitAllOrders()" style="justify-content:center;font-size:15px;">発注を確定する</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;position:sticky;bottom:0;background:var(--bg4);padding:14px 0 0;">
+        <button class="btn" onclick="hideOrdModal()" style="justify-content:center;padding:14px;">修正する</button>
+        <button class="btn btn-green" onclick="submitAllOrders()" style="justify-content:center;font-size:15px;padding:14px;">発注を確定する</button>
       </div>
     </div>
   </div>
 
   <!-- メール内容確認モーダル（履歴から） -->
-  <div id="mail-view-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:center;justify-content:center;padding:20px;">
+  <div id="mail-view-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;align-items:center;justify-content:center;padding:20px;">
     <div style="background:var(--bg4);border-radius:var(--radius-lg);width:100%;max-width:520px;padding:20px;max-height:80vh;overflow-y:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
         <div style="font-size:16px;font-weight:700;">送信したメール内容</div>
