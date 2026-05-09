@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>まかないAI</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#faf8f5;--bg2:#f2efe9;--bg3:#e8e4dc;--bg4:#fff;
+  --ink:#1a1814;--ink2:#5a5650;--ink3:#9a9590;--ink4:#c8c4bc;
+  --accent:#c8502a;--accent2:#e06840;--accent-dim:rgba(200,80,42,0.1);
+  --green:#2a7a4a;--green-dim:rgba(42,122,74,0.1);--green2:#38a063;
+  --amber:#b87820;--amber-dim:rgba(184,120,32,0.1);
+  --red:#c03030;--red-dim:rgba(192,48,48,0.08);
+  --blue:#2858a0;--blue-dim:rgba(40,88,160,0.08);
+  --border:#e0dbd2;--border2:#ccc8be;
+  --shadow:0 1px 3px rgba(0,0,0,0.06),0 4px 12px rgba(0,0,0,0.04);
+  --radius:10px;--radius-lg:16px;
+  --mono:'DM Mono',monospace;--sans:'Zen Kaku Gothic New',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;}
+
+.sidebar{width:200px;min-height:100vh;background:var(--ink);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto;}
+.logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,0.08);}
+.logo-name{font-size:16px;font-weight:700;color:#fff;}
+.logo-sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;font-family:var(--mono);}
+.nav{padding:12px 0;flex:1;}
+.nav-section{font-size:10px;color:rgba(255,255,255,0.25);padding:12px 18px 4px;letter-spacing:0.1em;font-family:var(--mono);}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;color:rgba(255,255,255,0.5);font-size:13px;transition:all 0.15s;border-left:2px solid transparent;}
+.nav-item:hover{color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.05);}
+.nav-item.active{color:#fff;border-left-color:var(--accent2);background:rgba(255,255,255,0.08);}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;font-family:var(--mono);}
+.nav-badge.am{background:var(--amber);}
+.sidebar-footer{padding:14px 18px;border-top:1px solid rgba(255,255,255,0.08);}
+.ai-status{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,0.4);}
+.pulse-dot{width:7px;height:7px;border-radius:50%;background:#38a063;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(56,160,99,0.4)}50%{opacity:0.8;box-shadow:0 0 0 4px rgba(56,160,99,0)}}
+
+.main{margin-left:200px;padding:28px 28px 60px;min-height:100vh;}
+.page{display:none;}
+.page.active{display:block;animation:fi 0.18s ease;}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.ph-title{font-size:22px;font-weight:700;}
+.ph-sub{font-size:13px;color:var(--ink3);margin-top:3px;}
+.ph-right{display:flex;gap:8px;align-items:center;}
+
+.card{background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow);margin-bottom:14px;}
+.card-title{font-size:11px;font-family:var(--mono);color:var(--ink3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px;}
+
+.g{display:grid;gap:14px;}
+.g2{grid-template-columns:1fr 1fr;}
+.g3{grid-template-columns:1fr 1fr 1fr;}
+.g4{grid-template-columns:repeat(4,1fr);}
+
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+.stat-val{font-size:28px;font-weight:700;font-family:var(--mono);color:var(--ink);line-height:1;}
+.stat-val.g{color:var(--green);}.stat-val.a{color:var(--amber);}.stat-val.r{color:var(--red);}.stat-val.b{color:var(--blue);}.stat-val.ac{color:var(--accent);}
+.stat-label{font-size:12px;color:var(--ink3);margin-top:5px;}
+.stat-sub{font-size:11px;color:var(--ink4);margin-top:2px;font-family:var(--mono);}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:99px;font-size:11px;font-family:var(--mono);font-weight:500;}
+.bg-g{background:var(--green-dim);color:var(--green);border:1px solid rgba(42,122,74,0.2);}
+.bg-a{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(184,120,32,0.2);}
+.bg-r{background:var(--red-dim);color:var(--red);border:1px solid rgba(192,48,48,0.15);}
+.bg-b{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(40,88,160,0.15);}
+.bg-gray{background:var(--bg2);color:var(--ink3);border:1px solid var(--border);}
+.bg-ac{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(200,80,42,0.2);}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--bg4);color:var(--ink2);font-size:13px;cursor:pointer;font-family:var(--sans);transition:all 0.15s;font-weight:500;}
+.btn:hover{background:var(--bg2);}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{background:var(--accent2);}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-green:hover{background:var(--green2);}
+.btn-sm{padding:5px 12px;font-size:12px;}
+.btn-approve{background:var(--green-dim);color:var(--green);border-color:rgba(42,122,74,0.3);}
+.btn-approve:hover{background:var(--green);color:#fff;}
+
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:12px;color:var(--ink3);font-family:var(--mono);}
+.field input,.field select,.field textarea{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--ink);padding:8px 12px;font-size:13px;font-family:var(--sans);outline:none;transition:border-color 0.15s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{font-size:11px;font-family:var(--mono);color:var(--ink3);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg2);letter-spacing:0.05em;}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tbody tr:hover td{background:var(--bg2);}
+
+.tabs{display:flex;gap:2px;margin-bottom:18px;background:var(--bg2);border-radius:var(--radius);padding:3px;border:1px solid var(--border);width:fit-content;}
+.tab{padding:7px 16px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--ink3);transition:all 0.15s;font-weight:500;}
+.tab.active{background:var(--bg4);color:var(--ink);box-shadow:var(--shadow);}
+
+.alert-card{background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;display:flex;gap:12px;border-left:3px solid var(--border2);}
+.alert-card.urgent{border-left-color:var(--red);}
+.alert-card.warn{border-left-color:var(--amber);}
+.alert-card.ok{border-left-color:var(--green);}
+.alert-card.info{border-left-color:var(--blue);}
+.alert-icon{font-size:18px;flex-shrink:0;line-height:1.4;}
+.alert-body{flex:1;min-width:0;}
+.alert-title{font-size:13px;font-weight:500;margin-bottom:3px;}
+.alert-desc{font-size:12px;color:var(--ink3);}
+.alert-actions{display:flex;gap:6px;margin-top:10px;}
+
+.divider{height:1px;background:var(--border);margin:14px 0;}
+.scroll-x{overflow-x:auto;}
+
+/* setup banner */
+.setup-banner{background:var(--accent-dim);border:1px solid rgba(200,80,42,0.3);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;}
+.setup-banner.hidden{display:none;}
+
+/* loading */
+.loading{display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:13px;padding:20px 0;}
+.spin{width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* toast */
+.toast{position:fixed;top:18px;right:18px;background:var(--ink);color:#fff;border-radius:var(--radius);padding:12px 18px;max-width:300px;z-index:300;transform:translateY(-80px);opacity:0;transition:all 0.25s ease;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast-title{font-size:13px;font-weight:500;margin-bottom:2px;}
+.toast-body{font-size:12px;color:rgba(255,255,255,0.6);}
+
+/* bar chart */
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.bar-label{width:60px;font-size:12px;color:var(--ink3);font-family:var(--mono);}
+.bar-bg{flex:1;height:20px;background:var(--bg2);border-radius:4px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:11px;font-family:var(--mono);color:#fff;transition:width 0.6s;}
+.bar-num{width:60px;font-size:12px;font-family:var(--mono);text-align:right;color:var(--ink2);}
+
+/* expiry */
+.exp-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.exp-row:last-child{border-bottom:none;}
+.exp-name{width:110px;font-size:13px;font-weight:500;}
+.exp-bar-bg{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.exp-bar{height:100%;border-radius:3px;}
+.exp-safe{background:var(--green);}
+.exp-warn{background:var(--amber);}
+.exp-danger{background:var(--red);}
+.exp-days{width:60px;font-size:12px;font-family:var(--mono);text-align:right;}
+.exp-days.safe{color:var(--green);}.exp-days.warn{color:var(--amber);}.exp-days.danger{color:var(--red);}
+
+.rm{background:var(--report-metric,var(--bg2));border-radius:var(--radius);padding:14px;border:1px solid var(--border);}
+.rm-val{font-size:20px;font-weight:700;font-family:var(--mono);}
+.rm-label{font-size:11px;color:var(--ink3);margin-top:3px;}
+.rm-diff{font-size:11px;font-family:var(--mono);margin-top:2px;}
+.up{color:var(--green);}.down{color:var(--red);}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-name">まかないAI</div>
+    <div class="logo-sub" id="store-name-label">読み込み中...</div>
+  </div>
+  <div class="nav">
+    <div class="nav-section">毎日の業務</div>
+    <div class="nav-item active" onclick="nav(this,'home')"><span class="nav-dot"></span>ホーム</div>
+    <div class="nav-item" onclick="nav(this,'forecast')"><span class="nav-dot"></span>来客・仕込み予測</div>
+    <div class="nav-item" onclick="nav(this,'shift')"><span class="nav-dot"></span>シフト管理</div>
+    <div class="nav-item" onclick="nav(this,'order')"><span class="nav-dot"></span>発注管理</div>
+    <div class="nav-section">食材・設備</div>
+    <div class="nav-item" onclick="nav(this,'expiry')"><span class="nav-dot"></span>賞味期限管理</div>
+    <div class="nav-item" onclick="nav(this,'loss')"><span class="nav-dot"></span>食材ロス分析</div>
+    <div class="nav-item" onclick="nav(this,'supply')"><span class="nav-dot"></span>備品・消耗品</div>
+    <div class="nav-item" onclick="nav(this,'machine')"><span class="nav-dot"></span>機械・設備</div>
+    <div class="nav-section">経営管理</div>
+    <div class="nav-item" onclick="nav(this,'attend')"><span class="nav-dot"></span>勤怠・給与</div>
+    <div class="nav-item" onclick="nav(this,'sales')"><span class="nav-dot"></span>売上記録</div>
+    <div class="nav-item" onclick="nav(this,'report')"><span class="nav-dot"></span>月次レポート</div>
+    <div class="nav-item" onclick="nav(this,'settings')"><span class="nav-dot"></span>設定</div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="ai-status"><span class="pulse-dot"></span><span id="conn-label">接続確認中...</span></div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- セットアップバナー -->
+<div class="setup-banner" id="setup-banner">
+  <div style="flex:1;">
+    <div style="font-size:13px;font-weight:500;color:var(--accent);margin-bottom:3px;">⚙ Googleスプレッドシートに接続されていません</div>
+    <div style="font-size:12px;color:var(--ink2);">設定画面でApps ScriptのURLを入力すると、実際のデータを読み書きできます。今はデモデータで動作中。</div>
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="nav(document.querySelector('.nav-item:last-of-type'),'settings')">設定する</button>
+</div>
+
+<!-- ▸ HOME -->
+<div class="page active" id="p-home">
+  <div class="ph">
+    <div><div class="ph-title">ホーム</div><div class="ph-sub" id="today-str"></div></div>
+    <div class="ph-right"><button class="btn btn-sm" onclick="loadAll()">🔄 データ更新</button></div>
+  </div>
+  <div class="g g4" style="margin-bottom:14px;">
+    <div class="stat"><div class="stat-val g" id="h-guests">—</div><div class="stat-label">本日の予測来客数</div><div class="stat-sub" id="h-weather">天気取得中</div></div>
+    <div class="stat"><div class="stat-val ac" id="h-prep">—</div><div class="stat-label">仕込み目安</div><div class="stat-sub">+10%バッファ</div></div>
+    <div class="stat"><div class="stat-val a" id="h-labor">—</div><div class="stat-label">今月の人件費</div><div class="stat-sub" id="h-fl">FL比 計算中</div></div>
+    <div class="stat"><div class="stat-val b" id="h-sales-m">—</div><div class="stat-label">今月の売上</div><div class="stat-sub" id="h-sales-sub">記録から集計</div></div>
+  </div>
+  <div class="g g2">
+    <div>
+      <div class="card">
+        <div class="card-title">AIからのアクション要求</div>
+        <div id="home-alerts"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">今週の来客予測</div>
+        <div id="home-week-chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">賞味期限 — 要注意</div>
+        <div id="home-expiry"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▸ FORECAST -->
+<div class="page" id="p-forecast">
+  <div class="ph"><div><div class="ph-title">来客・仕込み予測</div><div class="ph-sub">日付を選ぶと天気・祝日を自動取得します</div></div></div>
+  <div class="g g2">
+    <div class="card">
+      <div class="card-title">予測条件</div>
+      <div class="g g2" style="gap:10px;margin-bottom:12px;">
+        <div class="field"><label>予測日</label><input type="date" id="fc-date" onchange="fcOnDate()"></div>
+        <div class="field"><label>この曜日の平均来客数</label><input type="number" id="fc-base" placeholder="例: 80" min="1"></div>
+        <div class="field"><label>店舗住所（天気取得用）</label><input type="text" id="fc-addr" placeholder="例: 東京都杉並区"></div>
+        <div class="field"><label>客単価（円）</label><input type="number" id="fc-price" placeholder="例: 1500"></div>
+      </div>
+      <div class="field" style="margin-bottom:12px;"><label>特別要因</label>
+        <select id="fc-sns"><option value="1.0">なし</option><option value="1.1">クーポン配布中</option><option value="1.2">SNS投稿が伸びた</option><option value="1.35">バズった・メディア掲載</option></select>
+      </div>
+      <div id="fc-auto" style="margin-bottom:12px;min-height:24px;"></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="runFc()">AIで予測する</button>
+    </div>
+    <div class="card">
+      <div class="card-title">予測結果</div>
+      <div class="g g3" style="gap:10px;margin-bottom:14px;">
+        <div class="stat"><div class="stat-val g" id="fc-r-guests" style="font-size:22px;">—</div><div class="stat-label">来客数</div></div>
+        <div class="stat"><div class="stat-val ac" id="fc-r-prep" style="font-size:22px;">—</div><div class="stat-label">仕込み</div></div>
+        <div class="stat"><div class="stat-val b" id="fc-r-sales" style="font-size:16px;">—</div><div class="stat-label">予測売上</div></div>
+      </div>
+      <div id="fc-factors"></div>
+      <div class="divider"></div>
+      <div class="card-title">仕込みリスト（自動生成）</div>
+      <div id="fc-prep-list"><div style="color:var(--ink4);font-size:13px;">予測を実行すると生成されます</div></div>
+      <div id="fc-save-area" style="display:none;margin-top:12px;">
+        <button class="btn btn-approve btn-sm" onclick="saveFcResult()">この予測を売上記録に下書き保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▸ SHIFT -->
+<div class="page" id="p-shift">
+  <div class="ph"><div><div class="ph-title">シフト管理</div><div class="ph-sub">スタッフ情報をもとにAIがシフト案を生成します</div></div><div class="ph-right"><button class="btn btn-green btn-sm" onclick="toast('送信','Slackにシフトを送信しました（設定後有効）')">Slackに通知</button></div></div>
+  <div class="tabs"><div class="tab active" onclick="switchTab(this,'sh-grid')">シフト表</div><div class="tab" onclick="switchTab(this,'sh-members')">スタッフ設定</div><div class="tab" onclick="switchTab(this,'sh-add')">スタッフ追加</div></div>
+  <div id="sh-grid">
+    <div class="card">
+      <div class="card-title">今週のシフト案（来客予測から自動生成）</div>
+      <div class="scroll-x" id="shift-wrap"></div>
+    </div>
+  </div>
+  <div id="sh-members" style="display:none;">
+    <div class="card">
+      <div class="card-title">登録スタッフ一覧</div>
+      <div id="staff-loading" class="loading"><div class="spin"></div>読み込み中...</div>
+      <table class="tbl" id="staff-tbl" style="display:none;"><thead><tr><th>名前</th><th>連絡手段</th><th>希望曜日</th><th>時給</th><th>週最大時間</th></tr></thead><tbody id="staff-tb"></tbody></table>
+      <div id="staff-empty" style="display:none;color:var(--ink4);font-size:13px;padding:12px 0;">スタッフが登録されていません。「スタッフ追加」タブから追加してください。</div>
+    </div>
+  </div>
+  <div id="sh-add" style="display:none;">
+    <div class="card" style="max-width:480px;">
+      <div class="card-title">スタッフ追加 / 編集</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="field"><label>名前</label><input type="text" id="st-name" placeholder="例: 田中あかり"></div>
+        <div class="field"><label>連絡手段</label><select id="st-contact"><option>Slack</option><option>LINE</option><option>メール</option></select></div>
+        <div class="field"><label>希望曜日（例: 月火水）</label><input type="text" id="st-days" placeholder="月火水木"></div>
+        <div class="field"><label>時給（円）</label><input type="number" id="st-wage" placeholder="1050"></div>
+        <div class="field"><label>週最大時間</label><input type="number" id="st-maxh" placeholder="30"></div>
+        <div class="field"><label>連絡先（Slack ID / LINE等）</label><input type="text" id="st-contact-info" placeholder="@tanaka"></div>
+        <button class="btn btn-primary" onclick="saveStaff()">保存する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▸ ORDER -->
+<div class="page" id="p-order">
+  <div class="ph"><div><div class="ph-title">発注管理</div><div class="ph-sub">食材マスタと来客予測から発注量を自動計算します</div></div><div class="ph-right"><button class="btn btn-primary btn-sm" onclick="approveAllOrders()">全件承認・記録</button></div></div>
+  <div class="tabs"><div class="tab active" onclick="switchTab(this,'ord-today')">本日の発注</div><div class="tab" onclick="switchTab(this,'ord-master')">食材マスタ</div><div class="tab" onclick="switchTab(this,'ord-add')">食材を追加</div><div class="tab" onclick="switchTab(this,'ord-history')">発注履歴</div></div>
+  <div id="ord-today">
+    <div class="card">
+      <div class="card-title">AIが生成した発注リスト</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:12px;">予測来客数 <strong style="color:var(--green);" id="ord-guests">—</strong> 人をもとに計算。賞味期限残日数考慮済み。</div>
+      <div id="ord-list"><div class="loading"><div class="spin"></div>食材マスタを読み込み中...</div></div>
+    </div>
+  </div>
+  <div id="ord-master" style="display:none;">
+    <div class="card">
+      <div class="card-title">食材マスタ</div>
+      <div class="scroll-x"><table class="tbl" id="master-tbl"><thead><tr><th>食材</th><th>仕入れ先</th><th>単位</th><th>1人前</th><th>発注方法</th><th>賞味期限（日）</th></tr></thead><tbody id="master-tb"><tr><td colspan="6" style="color:var(--ink4);">読み込み中...</td></tr></tbody></table></div>
+    </div>
+  </div>
+  <div id="ord-add" style="display:none;">
+    <div class="card" style="max-width:480px;">
+      <div class="card-title">食材マスタに追加 / 編集</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="field"><label>食材名</label><input type="text" id="ing-name" placeholder="例: 豚バラ"></div>
+        <div class="field"><label>仕入れ先</label><input type="text" id="ing-sup" placeholder="例: 丸竹水産"></div>
+        <div class="field"><label>単位</label><input type="text" id="ing-unit" placeholder="例: g"></div>
+        <div class="field"><label>1人前あたりの使用量</label><input type="number" id="ing-per" placeholder="例: 150" step="0.01"></div>
+        <div class="field"><label>発注方法</label><select id="ing-method"><option>メール</option><option>FAX</option><option>電話</option><option>直接</option></select></div>
+        <div class="field"><label>発注後の賞味期限（日数）</label><input type="number" id="ing-expiry" placeholder="例: 7"></div>
+        <button class="btn btn-primary" onclick="saveIngredient()">保存する</button>
+      </div>
+    </div>
+  </div>
+  <div id="ord-history" style="display:none;">
+    <div class="card">
+      <div class="card-title">発注履歴</div>
+      <table class="tbl"><thead><tr><th>日付</th><th>食材</th><th>仕入れ先</th><th>数量</th><th>方法</th><th>状態</th></tr></thead><tbody id="ord-hist-tb"><tr><td colspan="6" style="color:var(--ink4);">読み込み中...</td></tr></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ▸ EXPIRY -->
+<div class="page" id="p-expiry">
+  <div class="ph"><div><div class="ph-title">賞味期限管理</div><div class="ph-sub">発注日＋設定日数で自動カウント。使い切り提案付き。</div></div><div class="ph-right"><button class="btn btn-sm" onclick="showAddInventory()">+ 在庫を追加</button></div></div>
+  <div class="g g2">
+    <div class="card">
+      <div class="card-title">在庫の残り日数</div>
+      <div id="expiry-list"><div class="loading"><div class="spin"></div>読み込み中...</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">在庫追加（発注日を入力）</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>食材名</label>
+          <select id="inv-name"><option value="">食材を選択...</option></select>
+        </div>
+        <div class="field"><label>発注数量</label><input type="number" id="inv-qty" placeholder="例: 2"></div>
+        <div style="font-size:12px;color:var(--ink3);">※ 賞味期限は食材マスタの設定日数から自動計算されます</div>
+        <button class="btn btn-green" onclick="addInventory()">在庫を記録する</button>
+      </div>
+      <div class="divider"></div>
+      <div class="card-title">AIの使い切り提案</div>
+      <div id="expiry-suggestions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ▸ LOSS -->
+<div class="page" id="p-loss">
+  <div class="ph"><div><div class="ph-title">食材ロス分析</div><div class="ph-sub">廃棄を記録するだけでトレンドと改善提案を生成します</div></div></div>
+  <div class="g g2">
+    <div class="card">
+      <div class="card-title">廃棄を記録</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>食材名</label><input type="text" id="loss-name" placeholder="例: 白菜"></div>
+        <div class="field"><label>廃棄量</label><input type="number" id="loss-qty" placeholder="例: 500" step="0.1"></div>
+        <div class="field"><label>単位</label><input type="text" id="loss-unit" placeholder="例: g"></div>
+        <div class="field"><label>理由</label><select id="loss-reason"><option>使いきれなかった</option><option>期限切れ</option><option>品質不良</option><option>調理ミス</option></select></div>
+        <button class="btn btn-primary" onclick="recordLoss()">記録する</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">ロス状況サマリー</div>
+      <div id="loss-summary" style="color:var(--ink4);font-size:13px;">廃棄記録が蓄積されると分析が表示されます</div>
+    </div>
+  </div>
+</div>
+
+<!-- ▸ SUPPLY -->
+<div class="page" id="p-supply">
+  <div class="ph"><div><div class="ph-title">備品・消耗品</div><div class="ph-sub">残量を入力すると補充タイミングをAIが判断します</div></div><div class="ph-right"><button class="btn btn-sm" onclick="showAddSupply()">+ 備品追加</button></div></div>
+  <div class="g g2">
+    <div class="card">
+      <div class="card-title">備品在庫状況</div>
+      <div id="supply-list"><div class="loading"><div class="spin"></div>読み込み中...</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">備品を追加 / 更新</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>備品名</label><input type="text" id="sup-name" placeholder="例: トイレットペーパー"></div>
+        <div class="field"><label>現在の在庫数</label><input type="number" id="sup-stock" placeholder="例: 5"></div>
+        <div class="field"><label>単位</label><input type="text" id="sup-unit" placeholder="例: ロール"></div>
+        <div class="field"><label>発注基準（これを下回ったら補充）</label><input type="number" id="sup-par" placeholder="例: 8"></div>
+        <div class="field"><label>仕入れ先</label><input type="text" id="sup-supplier" placeholder="例: 山田商店"></div>
+        <button class="btn btn-primary" onclick="saveSupply()">保存する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▸ MACHINE -->
+<div class="page" id="p-machine">
+  <div class="ph"><div><div class="ph-title">機械・設備管理</div><div class="ph-sub">点検日を記録。次回点検の前に自動でアラートします。</div></div><div class="ph-right"><button class="btn btn-sm" onclick="showAddMachine()">+ 設備追加</button></div></div>
+  <div class="g g2">
+    <div class="card">
+      <div class="card-title">設備一覧</div>
+      <div id="machine-list"><div class="loading"><div class="spin"></div>読み込み中...</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">設備を追加 / 記録</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>設備名</label><input type="text" id="mc-name" placeholder="例: 冷蔵庫A"></div>
+        <div class="field"><label>状態</label><select id="mc-status"><option value="ok">正常</option><option value="warn">要点検</option><option value="broken">故障中</option></select></div>
+        <div class="field"><label>最終清掃・点検日</label><input type="date" id="mc-last"></div>
+        <div class="field"><label>次回点検予定日</label><input type="date" id="mc-next"></div>
+        <div class="field"><label>メモ</label><textarea id="mc-memo" rows="2" placeholder="気になる症状など"></textarea></div>
+        <button class="btn btn-primary" onclick="saveMachine()">保存する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ▸ ATTEND -->
+<div class="page" id="p-attend">
+  <div class="ph"><div><div class="ph-title">勤怠・給与計算</div><div class="ph-sub">出退勤を入力するだけで給与を自動計算します</div></div><div class="ph-right"><button class="btn btn-primary btn-sm" onclick="calcPayroll()">今月の給与を計算</button></div></div>
+  <div class="g g2">
+    <div class="card">
+      <div class="card-title">出退勤を記録</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>日付</label><input type="date" id="att-date"></div>
+        <div class="field"><label>スタッフ名</label><select id="att-name"><option value="">選択...</option></select></div>
+        <div class="g g2" style="gap:10px;">
+          <div class="field"><label>出勤時刻</label><input type="time" id="att-in"></div>
+          <div class="field"><label>退勤時刻</label><input type="time" id="att-out"></div>
+        </div>
+        <div class="field"><label>備考</label><input type="text" id="att-note" placeholder="遅刻・早退など"></div>
+        <button class="btn btn-green" onclick="saveAttend()">記録する</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">今月の勤怠サマリー</div>
+      <div id="attend-summary"><div class="loading"><div class="spin"></div>読み込み中...</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">給与計算結果</div>
+    <div id="payroll-result" style="color:var(--ink4);font-size:13px;">「今月の給与を計算」ボタンを押すと集計されます</div>
+  </div>
+</div>
+
+<!-- ▸ SALES -->
+<div class="page" id="p-sales">
+  <div class="ph"><div><div class="ph-title">売上記録</div><div class="ph-sub">毎日の実績を入力。自動で月次レポートに反映されます。</div></div></div>
+  <div class="g g2">
+    <div class="card">
+      <div class="card-title">売上を記録</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>日付</label><input type="date" id="sl-date"></div>
+        <div class="g g2" style="gap:10px;">
+          <div class="field"><label>来客数</label><input type="number" id="sl-guests" placeholder="例: 78" min="0"></div>
+          <div class="field"><label>売上（円）</label><input type="number" id="sl-sales" placeholder="例: 117000" min="0"></div>
+        </div>
+        <div class="field"><label>天気</label><select id="sl-weather"><option>晴れ</option><option>曇り</option><option>雨</option><option>大雨</option><option>雪</option></select></div>
+        <div class="field"><label>備考</label><input type="text" id="sl-note" placeholder="イベント・特記事項など"></div>
+        <button class="btn btn-primary" onclick="saveSales()">記録する</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">直近の売上記録</div>
+      <div class="scroll-x"><table class="tbl"><thead><tr><th>日付</th><th>曜日</th><th>来客</th><th>売上</th><th>天気</th></tr></thead><tbody id="sales-tb"><tr><td colspan="5" style="color:var(--ink4);">読み込み中...</td></tr></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ▸ REPORT -->
+<div class="page" id="p-report">
+  <div class="ph"><div><div class="ph-title">月次レポート</div><div class="ph-sub">売上・人件費・ロスをAIが自動集計・分析します</div></div><div class="ph-right"><button class="btn btn-sm" onclick="genReport()">レポート生成</button></div></div>
+  <div id="report-content">
+    <div class="card" style="text-align:center;padding:40px;">
+      <div style="color:var(--ink3);margin-bottom:16px;">「レポート生成」ボタンを押すと<br>売上記録・勤怠記録から自動集計されます</div>
+      <button class="btn btn-primary" onclick="genReport()">レポートを生成する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ▸ SETTINGS -->
+<div class="page" id="p-settings">
+  <div class="ph"><div><div class="ph-title">設定</div><div class="ph-sub">初期設定は一度だけ。あとはAIが自動で動きます。</div></div></div>
+  <div class="g g2">
+    <div class="card">
+      <div class="card-title">Google Apps Script 接続設定</div>
+      <div style="background:var(--accent-dim);border-radius:var(--radius);padding:12px;margin-bottom:14px;font-size:12px;color:var(--ink2);line-height:1.7;">
+        <strong>設置手順：</strong><br>
+        1. Googleスプレッドシートを新規作成<br>
+        2. 拡張機能 → Apps Script を開く<br>
+        3. 配布したコード（gas_backend.js）を貼り付けて保存<br>
+        4. デプロイ → 新しいデプロイ → ウェブアプリ<br>
+        5. 下のURLフォームにデプロイURLを貼り付けて保存<br>
+        6. 「スプレッドシートを初期化」を実行
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>Apps Script デプロイURL</label><input type="text" id="set-url" placeholder="https://script.google.com/macros/s/..."></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="saveScriptUrl()">URLを保存して接続</button>
+          <button class="btn btn-sm" onclick="initSheets()">スプレッドシートを初期化</button>
+        </div>
+        <div id="conn-status" style="font-size:12px;color:var(--ink3);"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">店舗情報</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>店舗名</label><input type="text" id="set-name" placeholder="例: 実家の食堂"></div>
+        <div class="field"><label>住所</label><input type="text" id="set-addr" placeholder="例: 東京都杉並区"></div>
+        <div class="field"><label>営業時間</label><input type="text" id="set-hours" placeholder="11:00-22:00"></div>
+        <div class="field"><label>客単価（円）</label><input type="number" id="set-price" placeholder="1500"></div>
+        <button class="btn btn-green" onclick="saveStoreSettings()">店舗情報を保存</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">給与計算設定</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>給与締め日</label><select id="set-payday"><option>末日</option><option>25日</option><option>20日</option></select></div>
+        <div class="field"><label>深夜割増（22:00〜）</label><select id="set-night"><option value="25">25%増し</option><option value="35">35%増し</option></select></div>
+        <button class="btn btn-primary" onclick="savePaySettings()">保存する</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Slack / LINE 連携（設定後有効）</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>Slack Webhook URL</label><input type="text" id="set-slack" placeholder="https://hooks.slack.com/..."></div>
+        <div class="field"><label>LINE Notify トークン</label><input type="text" id="set-line" placeholder="トークンを入力"></div>
+        <button class="btn btn-sm" onclick="saveConnSettings()">保存する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<div class="toast" id="toast"><div class="toast-title" id="toast-t"></div><div class="toast-body" id="toast-b"></div></div>
+
+<script>
+// ══════════════════════════════════════
+// 定数・状態
+// ══════════════════════════════════════
+var SCRIPT_URL = localStorage.getItem('makanai_script_url') || '';
+var STORE = JSON.parse(localStorage.getItem('makanai_store') || '{"name":"まかないAI","addr":"","price":1500}');
+var DAYS = ['日','月','火','水','木','金','土'];
+var DAY_F = [1.15, 0.85, 0.9, 0.9, 0.95, 1.1, 1.2];
+var HOLIDAYS = {'2026-01-01':1,'2026-01-12':1,'2026-02-11':1,'2026-02-23':1,'2026-03-20':1,'2026-04-29':1,'2026-05-03':1,'2026-05-04':1,'2026-05-05':1,'2026-05-06':1,'2026-07-20':1,'2026-08-11':1,'2026-09-21':1,'2026-09-22':1,'2026-09-23':1,'2026-10-12':1,'2026-11-03':1,'2026-11-23':1};
+
+// キャッシュ
+var cache = { staff:[], ingredients:[], sales:[], attend:[], inventory:[], supplies:[], machines:[] };
+var fcState = { weather:1.0, special:1.0, guests:0 };
+
+// ══════════════════════════════════════
+// 初期化
+// ══════════════════════════════════════
+window.addEventListener('DOMContentLoaded', function() {
+  var today = new Date();
+  document.getElementById('today-str').textContent =
+    today.getFullYear()+'年'+(today.getMonth()+1)+'月'+today.getDate()+'日（'+DAYS[today.getDay()]+'）';
+  document.getElementById('fc-date').valueAsDate = today;
+  document.getElementById('att-date').valueAsDate = today;
+  document.getElementById('sl-date').valueAsDate = today;
+  document.getElementById('mc-last').valueAsDate = today;
+
+  applyStore();
+  fcOnDate();
+
+  if (SCRIPT_URL) {
+    document.getElementById('setup-banner').classList.add('hidden');
+    document.getElementById('set-url').value = SCRIPT_URL;
+    loadAll();
+  } else {
+    loadDemoData();
+    document.getElementById('conn-label').textContent = 'デモモード';
+  }
+
+  fetchTodayWeather();
+  renderHomeWeekChart();
+});
+
+function applyStore() {
+  document.getElementById('store-name-label').textContent = STORE.name || 'まかないAI';
+  if (document.getElementById('set-name')) document.getElementById('set-name').value = STORE.name || '';
+  if (document.getElementById('set-addr')) document.getElementById('set-addr').value = STORE.addr || '';
+  if (document.getElementById('set-price')) document.getElementById('set-price').value = STORE.price || 1500;
+  if (document.getElementById('fc-addr')) document.getElementById('fc-addr').value = STORE.addr || '';
+}
+
+// ══════════════════════════════════════
+// ナビゲーション
+// ══════════════════════════════════════
+function nav(el, id) {
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  el.classList.add('active');
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  var target = document.getElementById('p-' + id);
+  if (target) target.classList.add('active');
+}
+
+function switchTab(el, id) {
+  el.parentElement.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  el.classList.add('active');
+  var all = ['sh-grid','sh-members','sh-add','ord-today','ord-master','ord-add','ord-history'];
+  all.forEach(function(i) {
+    var e = document.getElementById(i);
+    if (e) e.style.display = (i === id) ? '' : 'none';
+  });
+}
+
+// ══════════════════════════════════════
+// トースト
+// ══════════════════════════════════════
+var toastTimer;
+function toast(title, body) {
+  document.getElementById('toast-t').textContent = title;
+  document.getElementById('toast-b').textContent = body;
+  var el = document.getElementById('toast');
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { el.classList.remove('show'); }, 3200);
+}
+
+// ══════════════════════════════════════
+// API通信
+// ══════════════════════════════════════
+function api(params) {
+  if (!SCRIPT_URL) return Promise.resolve(null);
+  var url = SCRIPT_URL + '?' + Object.entries(params).map(function(kv) {
+    return encodeURIComponent(kv[0]) + '=' + encodeURIComponent(kv[1]);
+  }).join('&');
+  return fetch(url).then(function(r) { return r.json(); }).catch(function() { return null; });
+}
+
+function apiPost(data) {
+  if (!SCRIPT_URL) return Promise.resolve(null);
+  return fetch(SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }).then(function(r) { return r.json(); }).catch(function() { return null; });
+}
+
+// ══════════════════════════════════════
+// データ全件ロード
+// ══════════════════════════════════════
+function loadAll() {
+  if (!SCRIPT_URL) { loadDemoData(); return; }
+  document.getElementById('conn-label').textContent = '同期中...';
+  api({ action: 'getAll' }).then(function(res) {
+    if (!res || res.status !== 'ok') {
+      document.getElementById('conn-label').textContent = '接続エラー';
+      toast('接続エラー', 'Apps ScriptのURLを確認してください');
+      loadDemoData();
+      return;
+    }
+    cache.staff = res.staff || [];
+    cache.ingredients = res.ingredients || [];
+    cache.sales = res.sales || [];
+    cache.attend = res.attend || [];
+    cache.inventory = res.inventory || [];
+    cache.supplies = res.supplies || [];
+    cache.machines = res.machines || [];
+
+    if (res.settings) {
+      STORE.name = res.settings['店舗名'] || STORE.name;
+      STORE.addr = res.settings['住所'] || STORE.addr;
+      STORE.price = parseInt(res.settings['客単価']) || STORE.price;
+      localStorage.setItem('makanai_store', JSON.stringify(STORE));
+      applyStore();
+    }
+
+    document.getElementById('conn-label').textContent = 'スプレッドシート接続済';
+    renderAll();
+    toast('同期完了', 'スプレッドシートからデータを読み込みました');
+  });
+}
+
+function loadDemoData() {
+  cache.staff = [
+    {name:'田中あかり', contact:'Slack', days:'月火水木', wage:1050, maxHours:30},
+    {name:'鈴木けんじ', contact:'Slack', days:'火木金土', wage:1100, maxHours:25},
+    {name:'佐藤みさき', contact:'LINE',  days:'月水金',   wage:1050, maxHours:20},
+    {name:'山本たろう', contact:'Slack', days:'土日',     wage:1000, maxHours:16},
+  ];
+  cache.ingredients = [
+    {name:'米',    supplier:'山田青果', unit:'kg', perPerson:0.2,  orderMethod:'メール', expiryDays:90},
+    {name:'豚バラ',supplier:'丸竹水産', unit:'g',  perPerson:150,  orderMethod:'FAX',    expiryDays:7},
+    {name:'野菜',  supplier:'山田青果', unit:'袋', perPerson:0.1,  orderMethod:'メール', expiryDays:10},
+    {name:'卵',    supplier:'東京食材', unit:'個', perPerson:2,    orderMethod:'メール', expiryDays:21},
+    {name:'だし',  supplier:'東京食材', unit:'L',  perPerson:0.3,  orderMethod:'メール', expiryDays:180},
+  ];
+  cache.inventory = [
+    {name:'玉ねぎ', daysLeft:2,  qty:3,  unit:'kg'},
+    {name:'豚バラ', daysLeft:4,  qty:500,unit:'g'},
+    {name:'豆腐',   daysLeft:1,  qty:4,  unit:'丁'},
+    {name:'キャベツ',daysLeft:6, qty:2,  unit:'玉'},
+    {name:'鶏もも', daysLeft:3,  qty:600,unit:'g'},
+  ];
+  cache.supplies = [
+    {name:'トイレットペーパー', stock:5,  unit:'ロール', par:12, supplier:'山田商店'},
+    {name:'食器用洗剤',         stock:1,  unit:'本',     par:3,  supplier:'山田商店'},
+    {name:'使い捨て手袋',       stock:200,unit:'枚',     par:50, supplier:'コスモス'},
+    {name:'ラップ',             stock:4,  unit:'本',     par:2,  supplier:'コスモス'},
+  ];
+  cache.machines = [
+    {name:'冷蔵庫A',  status:'warn', lastCleaned:'2026-02-01', nextCheck:'2026-05-01', memo:'稼働音が増加'},
+    {name:'冷凍庫',   status:'ok',   lastCleaned:'2026-04-01', nextCheck:'2026-07-01', memo:''},
+    {name:'食洗機',   status:'ok',   lastCleaned:'2026-04-18', nextCheck:'2026-05-18', memo:''},
+    {name:'エアコン', status:'info', lastCleaned:'2025-11-01', nextCheck:'2026-05-15', memo:'清掃時期'},
+  ];
+  cache.sales = [];
+  cache.attend = [];
+  renderAll();
+}
+
+// ══════════════════════════════════════
+// 全画面レンダリング
+// ══════════════════════════════════════
+function renderAll() {
+  renderHomeAlerts();
+  renderShift();
+  renderStaffTable();
+  renderIngredientSelect();
+  renderOrderList();
+  renderMasterTable();
+  renderExpiryList();
+  renderSupplyList();
+  renderMachineList();
+  renderAttendSummary();
+  renderSalesTable();
+  renderStaffSelect();
+}
+
+// ══════════════════════════════════════
+// ホーム
+// ══════════════════════════════════════
+function renderHomeAlerts() {
+  var alerts = [];
+
+  // 賞味期限アラート
+  cache.inventory.forEach(function(inv) {
+    if (inv.daysLeft <= 2 && inv.daysLeft >= 0) {
+      alerts.push({ type:'warn', icon:'🧅',
+        title: inv.name + ' — 残り' + inv.daysLeft + '日で期限切れ',
+        desc: '今日のメニューに組み込む提案をAIが作成しました。仕込みリストに追加しますか？',
+        action: '仕込みに追加', msg: inv.name + 'を今日の仕込みリストに追加しました'
+      });
+    }
+  });
+
+  // 備品アラート
+  cache.supplies.forEach(function(s) {
+    if (s.stock < s.par) {
+      alerts.push({ type:'urgent', icon:'📦',
+        title: s.name + ' — 残り' + s.stock + s.unit,
+        desc: '発注基準（' + s.par + s.unit + '）を下回っています。' + s.supplier + 'に発注しますか？',
+        action: '発注する', msg: s.name + 'の発注を記録しました'
+      });
+    }
+  });
+
+  // 設備アラート
+  cache.machines.forEach(function(m) {
+    if (m.status === 'warn') {
+      alerts.push({ type:'warn', icon:'⚙',
+        title: m.name + ' — 要点検',
+        desc: m.memo || '点検が必要な状態です。',
+        action: '業者に連絡', msg: '業者への連絡を記録しました'
+      });
+    }
+  });
+
+  if (alerts.length === 0) {
+    alerts.push({ type:'ok', icon:'✓', title:'現在、要対応のアラートはありません', desc:'今日も順調に営業できています。' });
+  }
+
+  var html = '';
+  alerts.slice(0, 4).forEach(function(a) {
+    html += '<div class="alert-card ' + a.type + '">';
+    html += '<div class="alert-icon">' + a.icon + '</div>';
+    html += '<div class="alert-body">';
+    html += '<div class="alert-title">' + a.title + '</div>';
+    html += '<div class="alert-desc">' + a.desc + '</div>';
+    if (a.action) {
+      html += '<div class="alert-actions"><button class="btn btn-approve btn-sm" onclick="approveAlert(this,\'' + a.msg + '\')">' + a.action + '</button></div>';
+    }
+    html += '</div></div>';
+  });
+  document.getElementById('home-alerts').innerHTML = html;
+
+  // 賞味期限（ホーム）
+  var expHtml = '';
+  var warnItems = cache.inventory.filter(function(i) { return i.daysLeft <= 5; });
+  if (warnItems.length === 0) {
+    expHtml = '<div style="color:var(--ink4);font-size:13px;">期限が近い食材はありません</div>';
+  } else {
+    warnItems.forEach(function(i) {
+      var cls = i.daysLeft <= 2 ? 'danger' : 'warn';
+      expHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">';
+      expHtml += '<span style="font-size:13px;">' + i.name + '</span>';
+      expHtml += '<span class="badge bg-' + (i.daysLeft <= 2 ? 'r' : 'a') + '">残' + i.daysLeft + '日</span>';
+      expHtml += '</div>';
+    });
+  }
+  document.getElementById('home-expiry').innerHTML = expHtml;
+}
+
+function renderHomeWeekChart() {
+  var base = parseInt(STORE.price ? 80 : 80);
+  var today = new Date();
+  var html = '';
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(today);
+    d.setDate(today.getDate() + i);
+    var dow = d.getDay();
+    var g = Math.round(80 * DAY_F[dow]);
+    var pct = Math.round(g / 110 * 100);
+    var high = g > 90;
+    var color = high ? 'var(--amber)' : 'var(--green)';
+    html += '<div class="bar-row">';
+    html += '<div class="bar-label">' + DAYS[dow] + (i === 0 ? ' 今日' : '') + '</div>';
+    html += '<div class="bar-bg"><div class="bar-fill" style="width:' + pct + '%;background:' + color + ';">' + g + '人</div></div>';
+    html += '</div>';
+  }
+  document.getElementById('home-week-chart').innerHTML = html;
+}
+
+function approveAlert(btn, msg) {
+  btn.textContent = '✓ 完了';
+  btn.className = 'btn btn-sm';
+  btn.style.color = 'var(--green)';
+  btn.disabled = true;
+  toast('完了', msg);
+}
+
+// ══════════════════════════════════════
+// 天気取得
+// ══════════════════════════════════════
+async function fetchTodayWeather() {
+  var addr = STORE.addr || '東京都';
+  try {
+    var geo = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(addr) + '&count=1&language=ja').then(function(r) { return r.json(); });
+    if (!geo.results || !geo.results[0]) throw new Error();
+    var lat = geo.results[0].latitude, lon = geo.results[0].longitude;
+    var dateStr = new Date().toISOString().slice(0, 10);
+    var w = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&daily=weathercode,precipitation_sum&timezone=Asia%2FTokyo&forecast_days=3').then(function(r) { return r.json(); });
+    var idx = w.daily.time.indexOf(dateStr);
+    if (idx === -1) throw new Error();
+    var code = w.daily.weathercode[idx];
+    var label = code <= 1 ? '晴れ ☀️' : code <= 3 ? '曇り ☁️' : code <= 67 ? '雨 🌧️' : 'その他';
+    var factor = code <= 1 ? 1.0 : code <= 3 ? 0.9 : code <= 67 ? 0.75 : 0.6;
+    var dow = new Date().getDay();
+    var guests = Math.round(80 * factor * DAY_F[dow]);
+    document.getElementById('h-guests').textContent = guests;
+    document.getElementById('h-prep').textContent = Math.round(guests * 1.1);
+    document.getElementById('h-weather').textContent = '天気: ' + label;
+    fcState.guests = guests;
+    document.getElementById('ord-guests').textContent = guests;
+    updateMonthlySummary();
+  } catch(e) {
+    document.getElementById('h-guests').textContent = 78;
+    document.getElementById('h-prep').textContent = 86;
+    document.getElementById('h-weather').textContent = '天気: 取得中';
+    fcState.guests = 78;
+  }
+}
+
+function updateMonthlySummary() {
+  var now = new Date();
+  var ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  var totalSales = 0, totalGuests = 0;
+  cache.sales.forEach(function(s) {
+    if (String(s.date).slice(0, 7) === ym) {
+      totalSales += Number(s.sales) || 0;
+      totalGuests += Number(s.guests) || 0;
+    }
+  });
+  var totalLabor = 0;
+  var wageMap = {};
+  cache.staff.forEach(function(s) { wageMap[s.name] = Number(s.wage) || 0; });
+  cache.attend.forEach(function(a) {
+    if (String(a.date).slice(0, 7) === ym) {
+      totalLabor += (Number(a.hours) || 0) * (wageMap[a.name] || 0);
+    }
+  });
+  document.getElementById('h-sales-m').textContent = totalSales > 0 ? '¥' + Math.round(totalSales / 10000) + '万' : '—';
+  document.getElementById('h-labor').textContent = totalLabor > 0 ? '¥' + Math.round(totalLabor / 10000) + '万' : '—';
+  if (totalSales > 0) {
+    var fl = Math.round(totalLabor / totalSales * 100);
+    document.getElementById('h-fl').textContent = 'FL比 ' + fl + '%' + (fl <= 70 ? ' ✓' : ' 要注意');
+  }
+  document.getElementById('h-sales-sub').textContent = totalGuests > 0 ? '累計 ' + totalGuests + '人来店' : '売上記録から集計';
+}
+
+// ══════════════════════════════════════
+// 来客予測
+// ══════════════════════════════════════
+var fcWeather = 1.0;
+function fcOnDate() {
+  var val = document.getElementById('fc-date').value;
+  if (!val) return;
+  var d = new Date(val);
+  var dow = d.getDay();
+  var isHol = !!HOLIDAYS[val];
+  fcState.special = isHol ? 1.25 : dow === 6 ? 1.15 : dow === 0 ? 1.1 : 1.0;
+  document.getElementById('fc-auto').innerHTML =
+    '<span class="badge bg-' + (isHol ? 'a' : 'g') + '" style="margin-right:6px;">' + DAYS[dow] + '曜日' + (isHol ? ' 祝日' : '') + '</span>' +
+    '<span class="badge bg-gray">係数 ×' + fcState.special + '</span>';
+  var addr = document.getElementById('fc-addr').value.trim();
+  if (addr) fetchFcWeather(addr, val);
+}
+
+async function fetchFcWeather(addr, dateStr) {
+  try {
+    var geo = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(addr) + '&count=1&language=ja').then(function(r) { return r.json(); });
+    if (!geo.results || !geo.results[0]) return;
+    var lat = geo.results[0].latitude, lon = geo.results[0].longitude;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var diff = Math.round((new Date(dateStr) - today) / 86400000);
+    if (diff < 0 || diff > 14) return;
+    var w = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&daily=weathercode,precipitation_sum&timezone=Asia%2FTokyo&forecast_days=15').then(function(r) { return r.json(); });
+    var idx = w.daily.time.indexOf(dateStr);
+    if (idx === -1) return;
+    var code = w.daily.weathercode[idx], rain = w.daily.precipitation_sum[idx];
+    var label, val;
+    if (code <= 1) { label = '晴れ'; val = 1.0; }
+    else if (code <= 3) { label = '曇り'; val = 0.9; }
+    else if (code <= 67) { label = rain > 20 ? '大雨' : '雨'; val = rain > 20 ? 0.6 : 0.75; }
+    else if (code <= 77) { label = '雪'; val = 0.85; }
+    else { label = '荒天'; val = 0.6; }
+    fcWeather = val;
+    var el = document.getElementById('fc-auto');
+    el.innerHTML += ' <span class="badge bg-b" style="margin-left:4px;">天気: ' + label + ' (×' + val + ')</span>';
+  } catch(e) {}
+}
+
+function runFc() {
+  var base = parseFloat(document.getElementById('fc-base').value);
+  if (!base || base <= 0) { toast('入力エラー', '平均来客数を入力してください'); return; }
+  var price = parseFloat(document.getElementById('fc-price').value) || STORE.price || 1500;
+  var sns = parseFloat(document.getElementById('fc-sns').value);
+  var d = new Date(document.getElementById('fc-date').value);
+  var dow = d.getDay();
+  var total = fcWeather * fcState.special * DAY_F[dow] * sns;
+  var guests = Math.round(base * total);
+  var prep = Math.round(guests * 1.1);
+  fcState.guests = guests;
+  document.getElementById('fc-r-guests').textContent = guests;
+  document.getElementById('fc-r-prep').textContent = prep;
+  document.getElementById('fc-r-sales').textContent = '¥' + (guests * price).toLocaleString();
+  document.getElementById('ord-guests').textContent = guests;
+
+  var factors = [
+    {n:'天気', v:fcWeather},
+    {n:'曜日・祝日', v:fcState.special},
+    {n:'曜日傾向', v:DAY_F[dow]},
+    {n:'SNS', v:sns}
+  ];
+  var fh = '<div style="display:flex;flex-direction:column;gap:5px;">';
+  factors.forEach(function(f) {
+    var p = Math.round((f.v - 1) * 100), s = p > 0 ? '+' : '';
+    var cls = p > 0 ? 'bg-g' : p < 0 ? 'bg-r' : 'bg-gray';
+    fh += '<div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--ink3);">' + f.n + '</span><span class="badge ' + cls + '">' + s + p + '%</span></div>';
+  });
+  document.getElementById('fc-factors').innerHTML = fh + '</div>';
+
+  var ph = '';
+  cache.ingredients.forEach(function(ing) {
+    var qty = Math.ceil(guests * ing.perPerson * 1.1);
+    ph += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">';
+    ph += '<span>' + ing.name + '</span>';
+    ph += '<span style="font-family:var(--mono);color:var(--accent);font-weight:500;">' + qty + ing.unit + '</span>';
+    ph += '</div>';
+  });
+  if (!ph) ph = '<div style="color:var(--ink4);font-size:13px;">食材マスタを登録すると自動生成されます</div>';
+  document.getElementById('fc-prep-list').innerHTML = ph;
+  document.getElementById('fc-save-area').style.display = '';
+  renderOrderList();
+  toast('予測完了', '来客数 ' + guests + ' 人 / 仕込み ' + prep + ' 人前');
+}
+
+function saveFcResult() {
+  document.getElementById('sl-guests').value = fcState.guests;
+  document.getElementById('sl-date').value = document.getElementById('fc-date').value;
+  nav(document.querySelector('.nav-item[onclick*="sales"]'), 'sales');
+  toast('下書き保存', '売上記録画面に転記しました');
+}
+
+// ══════════════════════════════════════
+// シフト
+// ══════════════════════════════════════
+function renderShift() {
+  var days = ['月','火','水','木','金','土','日'];
+  var html = '<table class="tbl" style="min-width:560px;"><thead><tr><th>名前</th>';
+  days.forEach(function(d) { html += '<th>' + d + '</th>'; });
+  html += '</tr></thead><tbody>';
+  cache.staff.forEach(function(s) {
+    html += '<tr><td style="font-weight:500;">' + s.name + '</td>';
+    days.forEach(function(d) {
+      var works = s.days && s.days.indexOf(d) >= 0;
+      if (works) {
+        html += '<td><span style="background:var(--green-dim);color:var(--green);border-radius:4px;padding:2px 8px;font-size:11px;font-family:var(--mono);">出勤</span></td>';
+      } else {
+        html += '<td style="color:var(--ink4);font-size:12px;">—</td>';
+      }
+    });
+    html += '</tr>';
+  });
+  if (cache.staff.length === 0) {
+    html += '<tr><td colspan="8" style="color:var(--ink4);text-align:center;padding:20px;">スタッフを登録するとシフト表が生成されます</td></tr>';
+  }
+  html += '</tbody></table>';
+  document.getElementById('shift-wrap').innerHTML = html;
+}
+
+function renderStaffTable() {
+  var el = document.getElementById('staff-tb');
+  var loading = document.getElementById('staff-loading');
+  var tbl = document.getElementById('staff-tbl');
+  var empty = document.getElementById('staff-empty');
+  if (!el) return;
+  if (loading) loading.style.display = 'none';
+  if (cache.staff.length === 0) {
+    if (tbl) tbl.style.display = 'none';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (tbl) tbl.style.display = '';
+  if (empty) empty.style.display = 'none';
+  var html = '';
+  cache.staff.forEach(function(s) {
+    html += '<tr>';
+    html += '<td style="font-weight:500;">' + s.name + '</td>';
+    html += '<td><span class="badge ' + (s.contact === 'Slack' ? 'bg-b' : 'bg-g') + '">' + s.contact + '</span></td>';
+    html += '<td style="font-family:var(--mono);font-size:12px;">' + s.days + '</td>';
+    html += '<td style="font-family:var(--mono);">¥' + s.wage + '/h</td>';
+    html += '<td style="font-family:var(--mono);">' + s.maxHours + 'h</td>';
+    html += '</tr>';
+  });
+  el.innerHTML = html;
+}
+
+function renderStaffSelect() {
+  var sel = document.getElementById('att-name');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">選択...</option>';
+  cache.staff.forEach(function(s) {
+    sel.innerHTML += '<option value="' + s.name + '">' + s.name + '</option>';
+  });
+}
+
+function renderIngredientSelect() {
+  var sel = document.getElementById('inv-name');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">食材を選択...</option>';
+  cache.ingredients.forEach(function(ing) {
+    sel.innerHTML += '<option value="' + ing.name + '">' + ing.name + '</option>';
+  });
+}
+
+function saveStaff() {
+  var data = {
+    action: 'saveStaff',
+    name: document.getElementById('st-name').value,
+    contact: document.getElementById('st-contact').value,
+    days: document.getElementById('st-days').value,
+    wage: document.getElementById('st-wage').value,
+    maxHours: document.getElementById('st-maxh').value,
+    contactInfo: document.getElementById('st-contact-info').value
+  };
+  if (!data.name) { toast('入力エラー', '名前を入力してください'); return; }
+  cache.staff.push(data);
+  renderShift();
+  renderStaffTable();
+  renderStaffSelect();
+  if (SCRIPT_URL) {
+    apiPost(data).then(function(res) {
+      toast('保存完了', data.name + ' をスプレッドシートに保存しました');
+    });
+  } else {
+    toast('保存完了（デモ）', data.name + ' を追加しました。実際の保存にはApps Script接続が必要です。');
+  }
+}
+
+// ══════════════════════════════════════
+// 発注
+// ══════════════════════════════════════
+function renderOrderList() {
+  var guests = fcState.guests || 78;
+  document.getElementById('ord-guests').textContent = guests;
+  var html = '';
+  cache.ingredients.forEach(function(ing) {
+    var qty = Math.ceil(guests * ing.perPerson * 1.1);
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:8px;">';
+    html += '<div style="flex:1;"><div style="font-size:13px;font-weight:500;">' + ing.name + '</div>';
+    html += '<div style="font-size:12px;color:var(--ink3);">' + ing.supplier + ' / ' + ing.orderMethod + ' / 賞味期限' + ing.expiryDays + '日</div></div>';
+    html += '<div style="font-family:var(--mono);font-size:15px;color:var(--accent);font-weight:500;">' + qty + ing.unit + '</div>';
+    html += '<button class="btn btn-approve btn-sm" onclick="approveOrder(this,\'' + ing.name + '\',\'' + ing.supplier + '\',' + qty + ',\'' + ing.unit + '\',\'' + ing.orderMethod + '\')">承認・記録</button>';
+    html += '</div>';
+  });
+  if (!html) html = '<div style="color:var(--ink4);font-size:13px;">食材マスタに食材を登録すると自動生成されます</div>';
+  document.getElementById('ord-list').innerHTML = html;
+}
+
+function renderMasterTable() {
+  var html = '';
+  cache.ingredients.forEach(function(ing) {
+    html += '<tr><td>' + ing.name + '</td><td>' + ing.supplier + '</td>';
+    html += '<td style="font-family:var(--mono);">' + ing.unit + '</td>';
+    html += '<td style="font-family:var(--mono);">' + ing.perPerson + ing.unit + '</td>';
+    html += '<td><span class="badge bg-b">' + ing.orderMethod + '</span></td>';
+    html += '<td style="font-family:var(--mono);">' + ing.expiryDays + '日</td></tr>';
+  });
+  if (!html) html = '<tr><td colspan="6" style="color:var(--ink4);">まだ食材が登録されていません</td></tr>';
+  document.getElementById('master-tb').innerHTML = html;
+}
+
+function approveOrder(btn, name, supplier, qty, unit, method) {
+  btn.textContent = '✓ 記録済';
+  btn.style.color = 'var(--green)';
+  btn.disabled = true;
+  var data = { action: 'saveOrder', item: name, supplier: supplier, qty: qty, unit: unit, method: method };
+  if (SCRIPT_URL) {
+    apiPost(data).then(function() { toast('発注記録', name + 'の発注を記録しました'); });
+  } else {
+    toast('発注記録（デモ）', name + 'の発注を記録しました');
+  }
+}
+
+function approveAllOrders() {
+  document.querySelectorAll('#ord-list button').forEach(function(btn) {
+    if (!btn.disabled) btn.click();
+  });
+  toast('全件承認', 'すべての発注を記録しました');
+}
+
+function saveIngredient() {
+  var data = {
+    action: 'saveIngredient',
+    name: document.getElementById('ing-name').value,
+    supplier: document.getElementById('ing-sup').value,
+    unit: document.getElementById('ing-unit').value,
+    perPerson: parseFloat(document.getElementById('ing-per').value),
+    orderMethod: document.getElementById('ing-method').value,
+    expiryDays: parseInt(document.getElementById('ing-expiry').value)
+  };
+  if (!data.name) { toast('入力エラー', '食材名を入力してください'); return; }
+  var found = false;
+  for (var i = 0; i < cache.ingredients.length; i++) {
+    if (cache.ingredients[i].name === data.name) { cache.ingredients[i] = data; found = true; break; }
+  }
+  if (!found) cache.ingredients.push(data);
+  renderOrderList();
+  renderMasterTable();
+  renderIngredientSelect();
+  if (SCRIPT_URL) {
+    apiPost(data).then(function() { toast('保存完了', data.name + ' をスプレッドシートに保存しました'); });
+  } else {
+    toast('保存完了（デモ）', data.name + ' を追加しました');
+  }
+}
+
+// ══════════════════════════════════════
+// 賞味期限
+// ══════════════════════════════════════
+function renderExpiryList() {
+  var html = '';
+  var sorted = cache.inventory.slice().sort(function(a, b) { return a.daysLeft - b.daysLeft; });
+  sorted.forEach(function(inv) {
+    var max = 14;
+    var pct = Math.min(100, Math.max(0, Math.round(inv.daysLeft / max * 100)));
+    var cls = inv.daysLeft <= 2 ? 'danger' : inv.daysLeft <= 5 ? 'warn' : 'safe';
+    html += '<div class="exp-row">';
+    html += '<div class="exp-name">' + inv.name + '</div>';
+    html += '<div class="exp-bar-bg"><div class="exp-bar exp-' + cls + '" style="width:' + pct + '%;"></div></div>';
+    html += '<div class="exp-days ' + cls + '">残' + inv.daysLeft + '日</div>';
+    html += '</div>';
+  });
+  if (!html) html = '<div style="color:var(--ink4);font-size:13px;">在庫が登録されていません</div>';
+  document.getElementById('expiry-list').innerHTML = html;
+
+  // 使い切り提案
+  var sug = '';
+  sorted.filter(function(i) { return i.daysLeft <= 3; }).forEach(function(i) {
+    sug += '<div class="alert-card warn" style="margin-bottom:8px;">';
+    sug += '<div class="alert-icon">💡</div>';
+    sug += '<div class="alert-body"><div class="alert-title">' + i.name + '（残' + i.daysLeft + '日）</div>';
+    sug += '<div class="alert-desc">今日のメニューで優先的に使い切ることを推奨します。</div></div></div>';
+  });
+  var sugEl = document.getElementById('expiry-suggestions');
+  if (sugEl) sugEl.innerHTML = sug || '<div style="color:var(--ink4);font-size:13px;">期限が迫った食材はありません</div>';
+}
+
+function addInventory() {
+  var ingName = document.getElementById('inv-name').value;
+  var qty = document.getElementById('inv-qty').value;
+  if (!ingName || !qty) { toast('入力エラー', '食材と数量を選択してください'); return; }
+  var ing = cache.ingredients.find(function(i) { return i.name === ingName; });
+  var expDays = ing ? ing.expiryDays : 7;
+  var newItem = { name: ingName, qty: qty, unit: ing ? ing.unit : '', daysLeft: expDays };
+  cache.inventory.push(newItem);
+  renderExpiryList();
+  if (SCRIPT_URL) {
+    apiPost({ action: 'saveInventory', name: ingName, qty: qty, unit: newItem.unit, expiryDays: expDays });
+  }
+  toast('在庫記録', ingName + 'の在庫を記録しました（賞味期限 ' + expDays + '日後）');
+}
+
+// ══════════════════════════════════════
+// 備品
+// ══════════════════════════════════════
+function renderSupplyList() {
+  var html = '';
+  cache.supplies.forEach(function(s) {
+    var ok = s.stock >= s.par;
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:8px;">';
+    html += '<div style="flex:1;"><div style="font-size:13px;font-weight:500;">' + s.name + '</div>';
+    html += '<div style="font-size:12px;color:var(--ink3);">残り ' + s.stock + s.unit + ' / 発注基準 ' + s.par + s.unit + '</div></div>';
+    html += '<span class="badge ' + (ok ? 'bg-g' : 'bg-r') + '">' + (ok ? '十分' : '要補充') + '</span>';
+    html += '</div>';
+  });
+  if (!html) html = '<div style="color:var(--ink4);font-size:13px;">備品が登録されていません</div>';
+  document.getElementById('supply-list').innerHTML = html;
+}
+
+function saveSupply() {
+  var data = {
+    name: document.getElementById('sup-name').value,
+    stock: parseInt(document.getElementById('sup-stock').value),
+    unit: document.getElementById('sup-unit').value,
+    par: parseInt(document.getElementById('sup-par').value),
+    supplier: document.getElementById('sup-supplier').value
+  };
+  if (!data.name) { toast('入力エラー', '備品名を入力してください'); return; }
+  var found = false;
+  for (var i = 0; i < cache.supplies.length; i++) {
+    if (cache.supplies[i].name === data.name) { cache.supplies[i] = data; found = true; break; }
+  }
+  if (!found) cache.supplies.push(data);
+  renderSupplyList();
+  renderHomeAlerts();
+  toast('保存完了', data.name + ' を保存しました');
+}
+
+// ══════════════════════════════════════
+// 設備
+// ══════════════════════════════════════
+function renderMachineList() {
+  var labels = { ok:'正常', warn:'要点検', info:'清掃推奨', broken:'故障中' };
+  var badgeCls = { ok:'bg-g', warn:'bg-a', info:'bg-b', broken:'bg-r' };
+  var html = '';
+  cache.machines.forEach(function(m) {
+    var cls = badgeCls[m.status] || 'bg-gray';
+    html += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+    html += '<div style="font-size:14px;font-weight:500;">' + m.name + '</div>';
+    html += '<span class="badge ' + cls + '">' + (labels[m.status] || m.status) + '</span></div>';
+    html += '<div style="font-size:12px;color:var(--ink3);">最終点検: ' + (m.lastCleaned || '未記録') + ' / 次回: ' + (m.nextCheck || '未設定') + '</div>';
+    if (m.memo) html += '<div style="font-size:12px;color:var(--ink2);margin-top:4px;">' + m.memo + '</div>';
+    html += '</div>';
+  });
+  if (!html) html = '<div style="color:var(--ink4);font-size:13px;">設備が登録されていません</div>';
+  document.getElementById('machine-list').innerHTML = html;
+}
+
+function saveMachine() {
+  var data = {
+    name: document.getElementById('mc-name').value,
+    status: document.getElementById('mc-status').value,
+    lastCleaned: document.getElementById('mc-last').value,
+    nextCheck: document.getElementById('mc-next').value,
+    memo: document.getElementById('mc-memo').value
+  };
+  if (!data.name) { toast('入力エラー', '設備名を入力してください'); return; }
+  var found = false;
+  for (var i = 0; i < cache.machines.length; i++) {
+    if (cache.machines[i].name === data.name) { cache.machines[i] = data; found = true; break; }
+  }
+  if (!found) cache.machines.push(data);
+  renderMachineList();
+  toast('保存完了', data.name + ' を記録しました');
+}
+
+// ══════════════════════════════════════
+// 勤怠・給与
+// ══════════════════════════════════════
+function renderAttendSummary() {
+  var now = new Date();
+  var thisMonth = now.getFullYear() + '/' + String(now.getMonth() + 1).padStart(2, '0');
+  var thisMonth2 = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  var thisMonth3 = String(now.getFullYear()) + '年' + String(now.getMonth() + 1) + '月';
+
+  // 出勤・退勤を名前でグループ化
+  var byStaff = {};
+  cache.attend.forEach(function(a) {
+    var d = String(a.date || '');
+    // 複数の日付形式に対応
+    var isThisMonth = d.slice(0,7) === thisMonth ||
+                      d.slice(0,7) === thisMonth2 ||
+                      d.indexOf(thisMonth3) >= 0;
+    if (!isThisMonth) return;
+    if (!a.name) return;
+    if (!byStaff[a.name]) byStaff[a.name] = { hours: 0, clockIns: 0 };
+    byStaff[a.name].hours += Number(a.hours) || 0;
+    if (a.clockIn) byStaff[a.name].clockIns++;
+  });
+
+  var html = '';
+  var names = Object.keys(byStaff);
+  if (names.length === 0) {
+    html = '<div style="color:var(--ink4);font-size:13px;">今月の勤怠記録がありません。<br>LINEで「出勤」と送ると自動で記録されます。</div>';
+  } else {
+    names.forEach(function(name) {
+      var s = byStaff[name];
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">';
+      html += '<div><div style="font-weight:500;">' + name + '</div>';
+      html += '<div style="font-size:11px;color:var(--ink3);">' + s.clockIns + '日出勤</div></div>';
+      html += '<span style="font-family:var(--mono);color:var(--green);">' + s.hours + '時間</span>';
+      html += '</div>';
+    });
+  }
+  document.getElementById('attend-summary').innerHTML = html;
+}
+
+function saveAttend() {
+  var data = {
+    action: 'saveAttend',
+    date: document.getElementById('att-date').value,
+    name: document.getElementById('att-name').value,
+    clockIn: document.getElementById('att-in').value,
+    clockOut: document.getElementById('att-out').value,
+    note: document.getElementById('att-note').value
+  };
+  if (!data.name || !data.date) { toast('入力エラー', '日付とスタッフ名を入力してください'); return; }
+  var inParts = data.clockIn.split(':').map(Number);
+  var outParts = data.clockOut.split(':').map(Number);
+  var hours = Math.round(((outParts[0] * 60 + outParts[1]) - (inParts[0] * 60 + inParts[1])) / 60 * 10) / 10;
+  data.hours = hours;
+  cache.attend.push(data);
+  renderAttendSummary();
+  if (SCRIPT_URL) {
+    apiPost(data).then(function() { toast('記録完了', data.name + ' の勤怠を記録しました（' + hours + '時間）'); });
+  } else {
+    toast('記録完了（デモ）', data.name + ' の勤怠を記録しました（' + hours + '時間）');
+  }
+}
+
+function calcPayroll() {
+  var now = new Date();
+  var thisMonth = now.getFullYear() + '/' + String(now.getMonth() + 1).padStart(2, '0');
+  var thisMonth2 = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  var wageMap = {};
+  cache.staff.forEach(function(s) { wageMap[s.name] = Number(s.wage) || 0; });
+  var result = {};
+  cache.attend.forEach(function(a) {
+    var d = String(a.date || '');
+    var isThisMonth = d.slice(0,7) === thisMonth || d.slice(0,7) === thisMonth2;
+    if (!isThisMonth || !a.name) return;
+    if (!result[a.name]) result[a.name] = { hours: 0, pay: 0 };
+    result[a.name].hours += Number(a.hours) || 0;
+    result[a.name].pay += (Number(a.hours) || 0) * (wageMap[a.name] || 0);
+  });
+  var html = '<table class="tbl"><thead><tr><th>スタッフ</th><th>勤務時間</th><th>時給</th><th>支給額</th></tr></thead><tbody>';
+  var total = 0;
+  Object.keys(result).forEach(function(name) {
+    var r = result[name];
+    total += r.pay;
+    html += '<tr><td style="font-weight:500;">' + name + '</td>';
+    html += '<td style="font-family:var(--mono);">' + r.hours + 'h</td>';
+    html += '<td style="font-family:var(--mono);">¥' + (wageMap[name] || '—') + '</td>';
+    html += '<td style="font-family:var(--mono);color:var(--green);font-weight:500;">¥' + Math.round(r.pay).toLocaleString() + '</td></tr>';
+  });
+  if (Object.keys(result).length === 0) {
+    html += '<tr><td colspan="4" style="color:var(--ink4);">今月の勤怠記録がありません</td></tr>';
+  }
+  html += '</tbody></table>';
+  html += '<div style="text-align:right;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">';
+  html += '<div style="font-size:12px;color:var(--ink3);">今月の人件費合計</div>';
+  html += '<div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--green);">¥' + Math.round(total).toLocaleString() + '</div></div>';
+  document.getElementById('payroll-result').innerHTML = html;
+  toast('給与計算完了', '今月の人件費: ¥' + Math.round(total).toLocaleString());
+}
+
+// ══════════════════════════════════════
+// 売上
+// ══════════════════════════════════════
+function saveSales() {
+  var data = {
+    action: 'saveSales',
+    date: document.getElementById('sl-date').value,
+    guests: document.getElementById('sl-guests').value,
+    sales: document.getElementById('sl-sales').value,
+    weather: document.getElementById('sl-weather').value,
+    note: document.getElementById('sl-note').value
+  };
+  if (!data.date || !data.guests) { toast('入力エラー', '日付と来客数を入力してください'); return; }
+  var d = new Date(data.date);
+  cache.sales.unshift({ date: data.date, day: DAYS[d.getDay()], guests: data.guests, sales: data.sales, weather: data.weather, note: data.note });
+  renderSalesTable();
+  updateMonthlySummary();
+  if (SCRIPT_URL) {
+    apiPost(data).then(function() { toast('記録完了', data.date + ' の売上を記録しました'); });
+  } else {
+    toast('記録完了（デモ）', data.date + ' の売上を記録しました');
+  }
+}
+
+function renderSalesTable() {
+  var html = '';
+  cache.sales.slice(0, 14).forEach(function(s) {
+    html += '<tr><td style="font-family:var(--mono);font-size:12px;">' + s.date + '</td>';
+    html += '<td>' + s.day + '</td>';
+    html += '<td style="font-family:var(--mono);">' + s.guests + '人</td>';
+    html += '<td style="font-family:var(--mono);">' + (s.sales ? '¥' + Number(s.sales).toLocaleString() : '—') + '</td>';
+    html += '<td>' + (s.weather || '—') + '</td></tr>';
+  });
+  if (!html) html = '<tr><td colspan="5" style="color:var(--ink4);">売上記録がありません</td></tr>';
+  document.getElementById('sales-tb').innerHTML = html;
+}
+
+// ══════════════════════════════════════
+// レポート
+// ══════════════════════════════════════
+function genReport() {
+  var now = new Date();
+  var ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  var totalSales = 0, totalGuests = 0, days = 0;
+  cache.sales.filter(function(s) { return String(s.date).slice(0, 7) === ym; })
+    .forEach(function(s) { totalSales += Number(s.sales) || 0; totalGuests += Number(s.guests) || 0; days++; });
+  var wageMap = {};
+  cache.staff.forEach(function(s) { wageMap[s.name] = Number(s.wage) || 0; });
+  var totalLabor = 0;
+  cache.attend.filter(function(a) { return String(a.date).slice(0, 7) === ym; })
+    .forEach(function(a) { totalLabor += (Number(a.hours) || 0) * (wageMap[a.name] || 0); });
+  var fl = totalSales > 0 ? Math.round(totalLabor / totalSales * 100) : 0;
+  var avgGuests = days > 0 ? Math.round(totalGuests / days) : 0;
+
+  var html = '<div class="g g4" style="margin-bottom:16px;">';
+  html += '<div class="stat"><div class="stat-val g">¥' + Math.round(totalSales / 10000) + '万</div><div class="stat-label">今月売上</div></div>';
+  html += '<div class="stat"><div class="stat-val b">' + totalGuests + '人</div><div class="stat-label">来客数合計</div><div class="stat-sub">日平均 ' + avgGuests + '人</div></div>';
+  html += '<div class="stat"><div class="stat-val a">¥' + Math.round(totalLabor / 10000) + '万</div><div class="stat-label">人件費</div><div class="stat-sub">FL比 ' + fl + '%</div></div>';
+  html += '<div class="stat"><div class="stat-val ac">¥' + Math.round((totalSales - totalLabor) / 10000) + '万</div><div class="stat-label">粗利益（概算）</div></div>';
+  html += '</div>';
+  html += '<div class="card"><div class="card-title">AIによる総評</div>';
+  html += '<div style="font-size:13px;line-height:1.9;color:var(--ink2);">';
+  if (totalSales === 0) {
+    html += '今月の売上記録がまだありません。「売上記録」画面から毎日の実績を入力してください。';
+  } else {
+    html += '今月は累計 <strong>' + totalGuests + '人</strong> のご来客で、売上は <strong>¥' + Math.round(totalSales / 10000) + '万円</strong> でした。';
+    html += '1日平均 <strong>' + avgGuests + '人</strong> のペースです。<br><br>';
+    if (fl > 0 && fl <= 70) {
+      html += 'FLコスト比率は <strong>' + fl + '%</strong> で、目標の70%以内に収まっています。';
+    } else if (fl > 70) {
+      html += 'FLコスト比率は <strong>' + fl + '%</strong> と目標（70%）を超えています。人件費または食材費の見直しを検討してください。';
+    }
+  }
+  html += '</div></div>';
+  document.getElementById('report-content').innerHTML = html;
+  toast('レポート生成完了', now.getMonth() + 1 + '月のレポートをまとめました');
+}
+
+// ══════════════════════════════════════
+// ロス記録
+// ══════════════════════════════════════
+function recordLoss() {
+  var name = document.getElementById('loss-name').value;
+  var qty = document.getElementById('loss-qty').value;
+  var unit = document.getElementById('loss-unit').value;
+  var reason = document.getElementById('loss-reason').value;
+  if (!name || !qty) { toast('入力エラー', '食材名と廃棄量を入力してください'); return; }
+  document.getElementById('loss-summary').innerHTML =
+    '<div class="alert-card warn"><div class="alert-body">' +
+    '<div class="alert-title">記録：' + name + ' ' + qty + unit + ' 廃棄</div>' +
+    '<div class="alert-desc">理由: ' + reason + '　データが蓄積されると傾向分析が表示されます。</div>' +
+    '</div></div>';
+  toast('廃棄記録', name + ' ' + qty + unit + ' の廃棄を記録しました');
+}
+
+// ══════════════════════════════════════
+// 設定保存
+// ══════════════════════════════════════
+function saveScriptUrl() {
+  var url = document.getElementById('set-url').value.trim();
+  if (!url) { toast('入力エラー', 'URLを入力してください'); return; }
+  SCRIPT_URL = url;
+  localStorage.setItem('makanai_script_url', url);
+  document.getElementById('setup-banner').classList.add('hidden');
+  document.getElementById('conn-status').textContent = '接続確認中...';
+  loadAll();
+}
+
+function initSheets() {
+  if (!SCRIPT_URL) { toast('エラー', 'まずURLを保存してください'); return; }
+  api({ action: 'setup' }).then(function(res) {
+    if (res && res.status === 'ok') {
+      toast('初期化完了', 'スプレッドシートにシートを作成しました');
+      document.getElementById('conn-status').textContent = '初期化完了 ✓';
+    } else {
+      toast('エラー', '初期化に失敗しました。URLを確認してください');
+    }
+  });
+}
+
+function saveStoreSettings() {
+  STORE.name = document.getElementById('set-name').value;
+  STORE.addr = document.getElementById('set-addr').value;
+  STORE.price = parseInt(document.getElementById('set-price').value) || 1500;
+  localStorage.setItem('makanai_store', JSON.stringify(STORE));
+  applyStore();
+  if (SCRIPT_URL) {
+    apiPost({ action: 'saveSettings', settings: {'店舗名': STORE.name, '住所': STORE.addr, '客単価': STORE.price} });
+  }
+  toast('保存完了', '店舗情報を保存しました');
+}
+
+function savePaySettings() {
+  toast('保存完了', '給与設定を保存しました');
+}
+
+function saveConnSettings() {
+  var slack = document.getElementById('set-slack').value;
+  var line = document.getElementById('set-line').value;
+  if (SCRIPT_URL) {
+    apiPost({ action: 'saveSettings', settings: {'Slack Webhook URL': slack, 'LINE Notify Token': line} });
+  }
+  toast('保存完了', '連携設定を保存しました');
+}
+
+function showAddMachine() { nav(document.querySelector('.nav-item[onclick*="machine"]'), 'machine'); }
+function showAddSupply() { nav(document.querySelector('.nav-item[onclick*="supply"]'), 'supply'); }
+function showAddInventory() { }
+
+
+function escapeAttr(str) {
+  return (str || '').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
