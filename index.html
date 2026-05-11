@@ -355,6 +355,21 @@ function mobileNav(btn, id) {
 // ══════════════════════════════════════
 // 設定チェック（設定画面に表示）
 // ══════════════════════════════════════
+
+function renderSettingsRolesPreview() {
+  var el = document.getElementById('settings-roles-preview');
+  if (!el) return;
+  var html = '';
+  ROLES.forEach(function(r) {
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;border:1px solid var(--border);background:var(--bg2);">';
+    html += '<span style="width:10px;height:10px;border-radius:50%;background:' + r.color + ';display:inline-block;"></span>';
+    html += '<span style="font-size:13px;font-weight:500;">' + r.name + '</span>';
+    html += '<span style="font-size:11px;color:var(--ink3);">¥' + r.wage + '/h</span>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
 function renderSetupCheck() {
   var el = document.getElementById('setup-check');
   if (!el) return;
@@ -597,11 +612,31 @@ function apiPost(data) {
     <!-- シフト確定・LINE通知 -->
     <div class="card" id="shift-notify-card" style="display:none;">
       <div class="card-title">シフトを従業員に通知する</div>
-      <div id="shift-notify-preview" style="margin-bottom:14px;font-size:13px;color:var(--ink2);line-height:1.8;background:var(--bg2);border-radius:var(--radius);padding:12px;white-space:pre-wrap;"></div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-green" onclick="sendShiftNotify()" style="flex:1;justify-content:center;">📱 LINEで全員に送る</button>
-        <button class="btn btn-sm" onclick="saveShiftToSheet()">スプレッドシートに保存</button>
+
+      <!-- 期間選択 -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button id="notify-period-1" onclick="setNotifyPeriod(1)" class="btn btn-primary btn-sm" style="flex:1;justify-content:center;">前半（1〜15日）</button>
+        <button id="notify-period-2" onclick="setNotifyPeriod(2)" class="btn btn-sm" style="flex:1;justify-content:center;">後半（16〜末日）</button>
       </div>
+
+      <!-- 従業員選択 -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:12px;color:var(--ink3);margin-bottom:8px;">送信する従業員を選択</div>
+        <div id="notify-staff-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+
+      <!-- プレビュー -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:12px;color:var(--ink3);margin-bottom:8px;">送信内容プレビュー</div>
+        <canvas id="shift-canvas" style="width:100%;border-radius:8px;border:1px solid var(--border);display:block;"></canvas>
+        <div id="shift-notify-preview" style="margin-top:10px;background:var(--bg2);border-radius:8px;padding:10px;font-size:12px;color:var(--ink2);line-height:1.7;white-space:pre-wrap;"></div>
+      </div>
+
+      <div style="display:flex;gap:8px;">
+        <button onclick="downloadShiftImage()" class="btn btn-sm" style="flex:1;justify-content:center;">📥 画像をダウンロード</button>
+        <button onclick="sendShiftNotify()" class="btn btn-green" style="flex:1;justify-content:center;">📱 LINEで全員に送る</button>
+      </div>
+      <div style="font-size:11px;color:var(--ink3);margin-top:8px;">※ 画像をダウンロードしてLINEに貼り付けることもできます</div>
     </div>
   </div>
   <div id="sh-members" style="display:none;">
@@ -1083,6 +1118,14 @@ function apiPost(data) {
     </div>
 
   <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+        👥 ロール管理
+        <button class="btn btn-sm" onclick="nav(document.querySelector('.nav-item[onclick*=\'shift\']'),\'shift\');switchTab(document.querySelector(\'#p-shift .tab\'),\'sh-members\')">ロールを編集する →</button>
+      </div>
+      <div id="settings-roles-preview" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+
+  <div class="card">
       <div class="card-title">店舗情報</div>
       <div style="display:flex;flex-direction:column;gap:10px;">
         <div class="field"><label>店舗名</label><input type="text" id="set-name" placeholder="例: 実家の食堂"></div>
@@ -1385,6 +1428,7 @@ function renderAll() {
   ordRenderItems();
   renderHomeAll();
   renderSetupCheck();
+  renderSettingsRolesPreview();
 }
 
 // ══════════════════════════════════════
@@ -3332,91 +3376,95 @@ function renderShiftCalendar() {
 
   var daysInMonth = new Date(shiftCalYear, shiftCalMonth + 1, 0).getDate();
   var dayNames = ['日','月','火','水','木','金','土'];
+  var today = new Date();
+  var isThisMonth = today.getFullYear() === shiftCalYear && today.getMonth() === shiftCalMonth;
+  var todayDate = today.getDate();
 
-  var html = '<div style="overflow-x:auto;">';
-  html += '<table style="width:100%;border-collapse:collapse;min-width:400px;">';
+  var html = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">';
+  html += '<table style="border-collapse:collapse;white-space:nowrap;">';
 
-  // ヘッダー
-  html += '<thead><tr>';
-  html += '<th style="width:48px;padding:4px 6px;font-size:10px;color:var(--ink3);font-family:var(--mono);border-bottom:1px solid var(--border);">日</th>';
-  html += '<th style="width:26px;padding:4px 2px;font-size:10px;color:var(--ink3);border-bottom:1px solid var(--border);text-align:center;">曜</th>';
-  cache.staff.forEach(function(s) {
-    var roleColor = s.role ? getRoleColor(s.role) : 'var(--ink4)';
-    html += '<th style="padding:4px 3px;font-size:11px;border-bottom:1px solid var(--border);text-align:center;min-width:36px;">';
-    html += '<div style="display:flex;align-items:center;justify-content:center;gap:3px;">';
-    html += '<span style="width:6px;height:6px;border-radius:50%;background:' + roleColor + ';display:inline-block;flex-shrink:0;"></span>';
-    html += '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44px;">' + s.name.slice(0,4) + '</span>';
-    html += '</div></th>';
-  });
-  html += '</tr></thead><tbody>';
+  // ── ヘッダー行：日付 ──
+  html += '<thead>';
 
+  // 1行目：日付番号
+  html += '<tr>';
+  html += '<th style="padding:4px 8px;font-size:11px;color:var(--ink3);text-align:left;position:sticky;left:0;background:var(--bg4);z-index:2;min-width:72px;border-bottom:1px solid var(--border);">従業員</th>';
   for (var d = 1; d <= daysInMonth; d++) {
     var date = new Date(shiftCalYear, shiftCalMonth, d);
     var dow = date.getDay();
-    var dayName = dayNames[dow];
-    var key = shiftCalYear + '/' + (shiftCalMonth + 1) + '/' + d;
-    var assigned = shiftData[key] || [];
+    var isToday = isThisMonth && d === todayDate;
     var isWeekend = dow === 0 || dow === 6;
-    var rowBg = isWeekend ? 'background:rgba(212,105,30,0.04);' : '';
-
-    html += '<tr style="' + rowBg + '">';
-    html += '<td style="padding:4px 6px;font-size:12px;font-family:var(--mono);border-bottom:1px solid var(--border);color:' + (isWeekend ? 'var(--accent)' : 'var(--ink)') + ';white-space:nowrap;">' + d + '日</td>';
-    html += '<td style="padding:4px 3px;font-size:11px;border-bottom:1px solid var(--border);text-align:center;color:' + (dow===0?'var(--red)':dow===6?'var(--blue)':'var(--ink3)') + ';">' + dayName + '</td>';
-
-    cache.staff.forEach(function(s) {
-      var isIn = assigned.indexOf(s.name) >= 0;
-      var roleColor = s.role ? getRoleColor(s.role) : 'var(--green)';
-
-      // その従業員がこの日にシフト希望を出しているか
-      var submissions = shiftSubmissions[s.name] || [];
-      var hasSubmission = submissions.indexOf(key) >= 0;
-
-      html += '<td style="padding:2px 1px;border-bottom:1px solid var(--border);text-align:center;position:relative;">';
-
-      // シフト希望ありの場合は緑ドットを表示
-      if (hasSubmission) {
-        html += '<span style="position:absolute;top:3px;left:50%;transform:translateX(-50%) translateX(10px);width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;" title="シフト希望あり"></span>';
-      }
-
-      html += '<button onclick="toggleShift(\'' + key + '\',\'' + s.name + '\',' + (hasSubmission ? 'true' : 'false') + ')" ';
-      html += 'style="width:30px;height:24px;border-radius:5px;border:1px solid ' + (isIn ? roleColor : (hasSubmission ? 'rgba(42,122,74,0.4)' : 'var(--border2)')) + ';';
-      html += 'background:' + (isIn ? roleColor + '22' : (hasSubmission ? 'rgba(42,122,74,0.06)' : 'transparent')) + ';';
-      html += 'cursor:pointer;font-size:13px;transition:all 0.15s;" ';
-      html += 'id="shift-' + key.replace(/\//g,'-') + '-' + s.name + '">';
-      html += isIn ? '✓' : '';
-      html += '</button>';
-      html += '</td>';
-    });
-    html += '</tr>';
+    var dayColor = dow===0?'var(--red)':dow===6?'var(--blue)':'var(--ink2)';
+    html += '<th style="padding:3px 2px;text-align:center;border-bottom:1px solid var(--border);min-width:36px;' + (isToday?'background:rgba(212,105,30,0.1);':'') + '">';
+    html += '<div style="font-size:11px;font-family:var(--mono);color:' + (isToday?'var(--accent)':dayColor) + ';font-weight:' + (isToday?'700':'400') + ';">' + d + '</div>';
+    html += '<div style="font-size:9px;color:' + (dow===0?'var(--red)':dow===6?'var(--blue)':'var(--ink4)') + ';">' + dayNames[dow] + '</div>';
+    html += '</th>';
   }
+  html += '</tr>';
+  html += '</thead>';
 
+  // ── ボディ：従業員ごとの行 ──
+  html += '<tbody>';
+
+  if (cache.staff.length === 0) {
+    html += '<tr><td colspan="' + (daysInMonth+1) + '" style="padding:20px;text-align:center;color:var(--ink4);font-size:13px;">従業員を追加してください</td></tr>';
+  } else {
+    cache.staff.forEach(function(s) {
+      var roleColor = s.role ? getRoleColor(s.role) : 'var(--green)';
+      var monthCount = 0;
+
+      html += '<tr>';
+      // 従業員名（固定列）
+      html += '<td style="padding:4px 8px;border-bottom:1px solid var(--border);position:sticky;left:0;background:var(--bg4);z-index:1;">';
+      html += '<div style="display:flex;align-items:center;gap:5px;">';
+      html += '<span style="width:7px;height:7px;border-radius:50%;background:' + roleColor + ';display:inline-block;flex-shrink:0;"></span>';
+      html += '<span style="font-size:12px;font-weight:500;">' + s.name + '</span>';
+      html += '</div></td>';
+
+      // 各日のセル
+      for (var d = 1; d <= daysInMonth; d++) {
+        var date = new Date(shiftCalYear, shiftCalMonth, d);
+        var dow = date.getDay();
+        var key = shiftCalYear + '/' + (shiftCalMonth+1) + '/' + d;
+        var assigned = shiftData[key] || [];
+        var isIn = assigned.indexOf(s.name) >= 0;
+        var isToday = isThisMonth && d === todayDate;
+        var isWeekend = dow === 0 || dow === 6;
+
+        // シフト希望あり？
+        var submissions = shiftSubmissions[s.name] || [];
+        var hasSubmission = submissions.indexOf(key) >= 0;
+
+        if (isIn) monthCount++;
+
+        html += '<td style="padding:2px;border-bottom:1px solid var(--border);text-align:center;background:' + (isWeekend?'rgba(212,105,30,0.03)':'') + (isToday?'rgba(212,105,30,0.06)':'') + ';">';
+
+        // シフト希望ありは薄い緑の背景
+        var btnBg = isIn ? roleColor + '33' : (hasSubmission ? 'rgba(42,122,74,0.08)' : 'transparent');
+        var btnBorder = isIn ? roleColor : (hasSubmission ? 'rgba(42,122,74,0.35)' : 'var(--border2)');
+
+        html += '<button onclick="toggleShift(\'' + key + '\',\'' + s.name + '\',' + (hasSubmission?'true':'false') + ')" ';
+        html += 'style="width:30px;height:26px;border-radius:5px;border:1px solid ' + btnBorder + ';background:' + btnBg + ';cursor:pointer;font-size:13px;transition:all 0.12s;">';
+        html += isIn ? '✓' : (hasSubmission ? '○' : '');
+        html += '</button>';
+        html += '</td>';
+      }
+      html += '</tr>';
+
+      // 合計行
+      html += '<tr>';
+      html += '<td style="padding:2px 8px 6px;position:sticky;left:0;background:var(--bg4);z-index:1;"></td>';
+      html += '<td colspan="' + daysInMonth + '" style="padding:2px 0 6px;border-bottom:2px solid var(--border);">';
+      html += '<span style="font-size:10px;color:var(--ink3);padding-left:6px;">' + s.name + '：' + monthCount + '日</span>';
+      html += '</td></tr>';
+    });
+  }
   html += '</tbody></table></div>';
 
   // 凡例
-  html += '<div style="margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;">';
-  html += '<div style="font-size:11px;color:var(--ink3);display:flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;"></span>シフト希望あり</div>';
-  html += '<div style="font-size:11px;color:var(--ink3);display:flex;align-items:center;gap:4px;"><span style="width:14px;height:14px;border-radius:3px;border:1px solid rgba(42,122,74,0.4);background:rgba(42,122,74,0.06);display:inline-block;"></span>希望あり（未確定）</div>';
-  html += '</div>';
-
-  // 合計行
-  html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;">';
-  cache.staff.forEach(function(s) {
-    var count = 0;
-    var subCount = (shiftSubmissions[s.name] || []).filter(function(k) {
-      return k.startsWith(shiftCalYear + '/' + (shiftCalMonth + 1) + '/');
-    }).length;
-    for (var d = 1; d <= daysInMonth; d++) {
-      var key = shiftCalYear + '/' + (shiftCalMonth + 1) + '/' + d;
-      if (shiftData[key] && shiftData[key].indexOf(s.name) >= 0) count++;
-    }
-    var roleColor = s.role ? getRoleColor(s.role) : 'var(--ink4)';
-    html += '<div style="font-size:12px;display:flex;align-items:center;gap:5px;">';
-    html += '<span style="width:8px;height:8px;border-radius:50%;background:' + roleColor + ';display:inline-block;"></span>';
-    html += '<span>' + s.name + '</span>';
-    html += '<span style="font-family:var(--mono);font-weight:500;color:var(--accent);">' + count + '日</span>';
-    if (subCount > 0) html += '<span style="font-size:10px;color:var(--green);">（希望' + subCount + '日）</span>';
-    html += '</div>';
-  });
+  html += '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--ink3);align-items:center;">';
+  html += '<div style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:14px;border-radius:3px;border:1px solid rgba(42,122,74,0.35);background:rgba(42,122,74,0.08);display:inline-flex;align-items:center;justify-content:center;font-size:10px;">○</span>シフト希望あり</div>';
+  html += '<div style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:14px;border-radius:3px;background:rgba(42,122,74,0.2);border:1px solid rgba(42,122,74,0.5);display:inline-flex;align-items:center;justify-content:center;font-size:10px;">✓</span>確定</div>';
   html += '</div>';
 
   var cal = document.getElementById('shift-calendar');
@@ -3448,96 +3496,310 @@ function toggleShift(key, staffName, hasSubmission) {
   }
 }
 
+// ══════════════════════════════════════
+// シフト通知（Canvas画像生成）
+// ══════════════════════════════════════
+var notifyPeriod = 1; // 1=前半(1-15), 2=後半(16-末)
+var notifySelectedStaff = [];
+
+function setNotifyPeriod(period) {
+  notifyPeriod = period;
+  var btn1 = document.getElementById('notify-period-1');
+  var btn2 = document.getElementById('notify-period-2');
+  if (btn1) btn1.className = period===1 ? 'btn btn-primary btn-sm' : 'btn btn-sm';
+  if (btn1) btn1.style.flex = '1'; btn1.style.justifyContent = 'center';
+  if (btn2) btn2.className = period===2 ? 'btn btn-primary btn-sm' : 'btn btn-sm';
+  if (btn2) btn2.style.flex = '1'; btn2.style.justifyContent = 'center';
+  renderNotifyStaffList();
+  drawShiftCanvas();
+  updateShiftNotifyPreview();
+}
+
+function renderNotifyStaffList() {
+  var el = document.getElementById('notify-staff-list');
+  if (!el) return;
+  if (notifySelectedStaff.length === 0 && cache.staff.length > 0) {
+    notifySelectedStaff = cache.staff.map(function(s){ return s.name; });
+  }
+  var html = '';
+  cache.staff.forEach(function(s) {
+    var isSelected = notifySelectedStaff.indexOf(s.name) >= 0;
+    var count = getStaffShiftDays(s.name).length;
+    var roleColor = s.role ? getRoleColor(s.role) : 'var(--green)';
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:' + (isSelected?'rgba(42,122,74,0.06)':'var(--bg2)') + ';border:1px solid ' + (isSelected?'rgba(42,122,74,0.3)':'var(--border)') + ';cursor:pointer;" onclick="toggleNotifyStaff(\'' + s.name + '\')">';
+    html += '<div style="width:20px;height:20px;border-radius:5px;border:1.5px solid ' + (isSelected?'var(--green)':'var(--border2)') + ';background:' + (isSelected?'var(--green)':'transparent') + ';display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">' + (isSelected?'✓':'') + '</div>';
+    html += '<span style="width:7px;height:7px;border-radius:50%;background:' + roleColor + ';display:inline-block;"></span>';
+    html += '<span style="font-size:13px;font-weight:500;flex:1;">' + s.name + '</span>';
+    html += '<span style="font-size:11px;color:var(--ink3);">' + count + '日</span>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function toggleNotifyStaff(name) {
+  var idx = notifySelectedStaff.indexOf(name);
+  if (idx >= 0) notifySelectedStaff.splice(idx, 1);
+  else notifySelectedStaff.push(name);
+  renderNotifyStaffList();
+}
+
+function getShiftPeriodDays() {
+  var daysInMonth = new Date(shiftCalYear, shiftCalMonth + 1, 0).getDate();
+  var startDay = notifyPeriod === 1 ? 1 : 16;
+  var endDay = notifyPeriod === 1 ? 15 : daysInMonth;
+  var days = [];
+  for (var d = startDay; d <= endDay; d++) days.push(d);
+  return days;
+}
+
+function getStaffShiftDays(staffName) {
+  var days = getShiftPeriodDays();
+  return days.filter(function(d) {
+    var key = shiftCalYear + '/' + (shiftCalMonth+1) + '/' + d;
+    return shiftData[key] && shiftData[key].indexOf(staffName) >= 0;
+  });
+}
+
+// ── Canvas でシフト表を描画 ──
+function drawShiftCanvas() {
+  var canvas = document.getElementById('shift-canvas');
+  if (!canvas) return null;
+
+  var days = getShiftPeriodDays();
+  var staffList = cache.staff.length > 0 ? cache.staff : [{name:'（従業員未登録）',role:'',color:'#999'}];
+  var dayNames = ['日','月','火','水','木','金','土'];
+
+  var cellW=44, cellH=40, nameW=96, headerH=52, pad=18, exW=50;
+  var W = pad*2 + nameW + cellW*days.length + exW;
+  var H = pad*2 + headerH + cellH*staffList.length + 36;
+
+  canvas.width  = W * 2;
+  canvas.height = H * 2;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  var ctx = canvas.getContext('2d');
+  ctx.scale(2, 2);
+
+  // 白背景
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  // タイトル
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = 'bold 13px -apple-system,Helvetica,sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('一蕃鶏　' + shiftCalYear + '年' + (shiftCalMonth+1) + '月　' + (notifyPeriod===1?'前半（1〜15日）':'後半（16〜末日）') + '　シフト', pad, 18);
+
+  var oy = pad + headerH;
+
+  // 日付ヘッダー
+  days.forEach(function(d, i) {
+    var x = pad + nameW + i * cellW;
+    var date = new Date(shiftCalYear, shiftCalMonth, d);
+    var dow = date.getDay(); // 0=Sun
+    var isWe = dow === 0 || dow === 6;
+
+    if (isWe) {
+      ctx.fillStyle = 'rgba(212,105,30,0.07)';
+      ctx.fillRect(x, oy - headerH + 4, cellW - 1, headerH - 4);
+    }
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = dow===0 ? '#c03030' : dow===6 ? '#2858a0' : '#1a1a1a';
+    ctx.font = 'bold 13px -apple-system,Helvetica,sans-serif';
+    ctx.fillText(String(d), x + cellW/2, oy - headerH + 4 + 20);
+
+    ctx.fillStyle = dow===0 ? '#c03030' : dow===6 ? '#2858a0' : '#888';
+    ctx.font = '11px -apple-system,Helvetica,sans-serif';
+    ctx.fillText(dayNames[dow], x + cellW/2, oy - headerH + 4 + 38);
+  });
+
+  // 従業員ヘッダー
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#888';
+  ctx.font = '11px -apple-system,Helvetica,sans-serif';
+  ctx.fillText('従業員', pad + 6, oy - headerH + 4 + 20);
+
+  // 従業員行
+  staffList.forEach(function(s, si) {
+    var y = oy + si * cellH;
+    var roleColor = s.role ? getRoleColor(s.role) : '#2a7a4a';
+    var hex = roleColor.replace('#','');
+    var r = parseInt(hex.substr(0,2)||'2a',16);
+    var g = parseInt(hex.substr(2,2)||'7a',16);
+    var b = parseInt(hex.substr(4,2)||'4a',16);
+
+    // 行背景（交互）
+    if (si % 2 === 1) {
+      ctx.fillStyle = 'rgba(0,0,0,0.02)';
+      ctx.fillRect(pad, y, nameW + cellW*days.length + exW, cellH);
+    }
+
+    // ドット
+    ctx.fillStyle = roleColor;
+    ctx.beginPath();
+    ctx.arc(pad + 9, y + cellH/2, 4, 0, Math.PI*2);
+    ctx.fill();
+
+    // 名前
+    ctx.fillStyle = '#1a1a1a';
+    ctx.font = 'bold 12px -apple-system,Helvetica,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(s.name, pad + 20, y + cellH/2 + 4);
+
+    var count = 0;
+    days.forEach(function(d, i) {
+      var key = shiftCalYear + '/' + (shiftCalMonth+1) + '/' + d;
+      var isIn = shiftData[key] && shiftData[key].indexOf(s.name) >= 0;
+      var x = pad + nameW + i * cellW;
+      var cp = 4;
+
+      if (isIn) {
+        count++;
+        // 塗り
+        ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',0.12)';
+        ctx.beginPath();
+        ctx.roundRect(x + cp, y + 5, cellW - cp*2, cellH - 10, 4);
+        ctx.fill();
+        // 枠
+        ctx.strokeStyle = roleColor;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(x + cp, y + 5, cellW - cp*2, cellH - 10, 4);
+        ctx.stroke();
+        // チェック
+        ctx.fillStyle = roleColor;
+        ctx.font = 'bold 13px -apple-system,Helvetica,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('✓', x + cellW/2, y + cellH/2 + 5);
+      } else {
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.roundRect(x + cp, y + 5, cellW - cp*2, cellH - 10, 4);
+        ctx.stroke();
+      }
+    });
+
+    // 合計日数
+    ctx.fillStyle = '#888';
+    ctx.font = '11px -apple-system,Helvetica,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(count + '日', pad + nameW + cellW*days.length + 6, y + cellH/2 + 4);
+  });
+
+  // 外枠
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad, oy - headerH + 4, nameW + cellW*days.length + exW, headerH + cellH*staffList.length - 4);
+  // 名前と日付の仕切り
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(pad + nameW, oy - headerH + 4);
+  ctx.lineTo(pad + nameW, oy + cellH*staffList.length);
+  ctx.stroke();
+  // ヘッダー下線
+  ctx.beginPath();
+  ctx.moveTo(pad, oy - 1);
+  ctx.lineTo(pad + nameW + cellW*days.length + exW, oy - 1);
+  ctx.stroke();
+
+  return canvas.toDataURL('image/png');
+}
+
+function downloadShiftImage() {
+  var imgData = drawShiftCanvas();
+  if (!imgData) { toast('エラー', 'シフト表がありません'); return; }
+  var a = document.createElement('a');
+  a.href = imgData;
+  a.download = 'shift_' + shiftCalYear + '_' + (shiftCalMonth+1) + '_' + (notifyPeriod===1?'zenhan':'kouhan') + '.png';
+  a.click();
+  toast('ダウンロード完了', '画像をLINEに貼り付けて送ってください');
+}
+
 function updateShiftNotifyPreview() {
   var notifyCard = document.getElementById('shift-notify-card');
   var preview = document.getElementById('shift-notify-preview');
   if (!notifyCard || !preview) return;
 
-  // 今月のシフトデータがあれば表示
   var hasData = false;
-  var daysInMonth = new Date(shiftCalYear, shiftCalMonth + 1, 0).getDate();
-  for (var d = 1; d <= daysInMonth; d++) {
-    var key = shiftCalYear + '/' + (shiftCalMonth + 1) + '/' + d;
-    if (shiftData[key] && shiftData[key].length > 0) { hasData = true; break; }
-  }
+  var days = getShiftPeriodDays();
+  days.forEach(function(d) {
+    var key = shiftCalYear + '/' + (shiftCalMonth+1) + '/' + d;
+    if (shiftData[key] && shiftData[key].length > 0) hasData = true;
+  });
 
   if (!hasData) { notifyCard.style.display = 'none'; return; }
   notifyCard.style.display = '';
+  renderNotifyStaffList();
+  drawShiftCanvas();
 
-  // 従業員ごとのシフトをまとめる
-  var byStaff = {};
-  cache.staff.forEach(function(s) { byStaff[s.name] = []; });
-  for (var d = 1; d <= daysInMonth; d++) {
-    var key = shiftCalYear + '/' + (shiftCalMonth + 1) + '/' + d;
-    var date = new Date(shiftCalYear, shiftCalMonth, d);
-    var dayName = ['日','月','火','水','木','金','土'][date.getDay()];
-    if (shiftData[key]) {
-      shiftData[key].forEach(function(name) {
-        if (byStaff[name]) byStaff[name].push(d + '日(' + dayName + ')');
-      });
-    }
-  }
-
-  var msg = '【' + shiftCalYear + '年' + (shiftCalMonth+1) + '月のシフト】\n\n';
-  Object.keys(byStaff).forEach(function(name) {
-    if (byStaff[name].length > 0) {
-      msg += '▶ ' + name + 'さん\n';
-      msg += byStaff[name].join('、') + '\n\n';
-    }
+  // テキストプレビュー（LINEに送るメッセージ）
+  var periodLabel = notifyPeriod===1 ? '前半（1〜15日）' : '後半（16〜末日）';
+  var msg = '【' + shiftCalYear + '年' + (shiftCalMonth+1) + '月 ' + periodLabel + ' シフト】\n\n';
+  cache.staff.forEach(function(s) {
+    var myDays = getStaffShiftDays(s.name);
+    if (myDays.length === 0) return;
+    var dayNames = ['日','月','火','水','木','金','土'];
+    var dayStrs = myDays.map(function(d) {
+      var date = new Date(shiftCalYear, shiftCalMonth, d);
+      return d + '日(' + dayNames[date.getDay()] + ')';
+    });
+    msg += '▶ ' + s.name + 'さん：' + myDays.length + '日\n';
+    msg += dayStrs.join('、') + '\n\n';
   });
   msg += 'よろしくお願いします！';
   preview.textContent = msg;
 }
 
 function sendShiftNotify() {
-  var preview = document.getElementById('shift-notify-preview');
-  if (!preview) return;
-  var msg = preview.textContent;
-
-  // CloudflareWorker経由でLINEにプッシュ通知
-  var workerUrl = localStorage.getItem('makanai_worker_url') || '';
-  if (!workerUrl) {
-    toast('設定エラー', '設定画面でCloudflare WorkerのURLを登録してください');
-    return;
-  }
-
-  // 従業員全員に個別送信
+  var workerUrl = localStorage.getItem('makanai_worker_url') || 'https://makanai-line.pu-00-llet.workers.dev';
+  var dayNames = ['日','月','火','水','木','金','土'];
+  var periodLabel = notifyPeriod===1 ? '前半（1〜15日）' : '後半（16〜末日）';
   var sent = 0;
-  cache.staff.forEach(function(s) {
-    if (!s.lineId) return;
+
+  notifySelectedStaff.forEach(function(name) {
+    var s = cache.staff.find(function(st){ return st.name === name; });
+    if (!s || !s.lineId) return;
+
+    var myDays = getStaffShiftDays(name);
+    var dayStrs = myDays.map(function(d) {
+      var date = new Date(shiftCalYear, shiftCalMonth, d);
+      return d + '日(' + dayNames[date.getDay()] + ')';
+    });
+
+    var msg = '【' + shiftCalYear + '年' + (shiftCalMonth+1) + '月 ' + periodLabel + ' シフト】\n\n' +
+      name + 'さんのシフトです。\n\n' +
+      '📅 出勤日：' + (myDays.length > 0 ? dayStrs.join('、') : 'なし') + '\n' +
+      '合計：' + myDays.length + '日\n\n' +
+      'よろしくお願いします！\n' +
+      '（シフト表の画像は別送します）';
+
     fetch(workerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'pushToUser',
-        userId: s.lineId,
-        message: '【' + (new Date().getMonth()+1) + '月のシフト】\n\n▶ ' + s.name + 'さんのシフト\n' +
-          (shiftData ? getStaffShiftText(s.name) : 'シフトを確認してください')
-      })
+      body: JSON.stringify({ action: 'pushToUser', userId: s.lineId, message: msg })
     });
     sent++;
   });
 
   if (sent === 0) {
-    toast('送信できません', '従業員のLINE IDが登録されていません。まずバイトにLINE botを友だち追加してもらってください。');
+    toast('送信できません', '従業員のLINE IDが登録されていません');
   } else {
-    toast('送信しました', sent + '名にLINEでシフトを送信しました ✓');
+    toast('送信しました ✓', sent + '名にシフトを送信しました\n画像は別途ダウンロードして送ってください');
+    downloadShiftImage();
   }
 }
 
 function getStaffShiftText(staffName) {
-  var daysInMonth = new Date(shiftCalYear, shiftCalMonth + 1, 0).getDate();
-  var days = [];
-  for (var d = 1; d <= daysInMonth; d++) {
-    var key = shiftCalYear + '/' + (shiftCalMonth + 1) + '/' + d;
+  return getStaffShiftDays(staffName).map(function(d) {
     var date = new Date(shiftCalYear, shiftCalMonth, d);
-    var dayName = ['日','月','火','水','木','金','土'][date.getDay()];
-    if (shiftData[key] && shiftData[key].indexOf(staffName) >= 0) {
-      days.push(d + '日(' + dayName + ')');
-    }
-  }
-  return days.length > 0 ? days.join('、') : 'シフトなし';
+    return d + '日(' + ['日','月','火','水','木','金','土'][date.getDay()] + ')';
+  }).join('、') || 'シフトなし';
 }
+
 
 function saveShiftToSheet() {
   if (!SCRIPT_URL) { toast('未接続', 'スプレッドシートと接続してください'); return; }
